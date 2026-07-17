@@ -7,24 +7,25 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * users — central account table (ERD: Identity & Profiles).
+     * Login identifier is the unique phone number (SRS: phone-based auth).
+     * NOTE: ERD names this column password_hash; we keep Laravel's
+     * conventional `password` (hashed cast) — same content, framework naming.
      */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->string('phone', 20)->unique();
             $table->string('password');
+            $table->string('role', 20)->index(); // enum App\Enums\UserRole
+            $table->string('fcm_token')->nullable();
+            $table->string('profile_image_url')->nullable();
+            $table->boolean('is_banned')->default(false);
             $table->rememberToken();
             $table->timestamps();
-        });
-
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            $table->softDeletes();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -37,13 +38,9 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('users');
     }
 };

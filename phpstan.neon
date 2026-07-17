@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+    level: 6
+    ignoreErrors:
+        # Eloquent relation generics (BelongsTo<Model, $this> on every relation)
+        # add verbosity without catching real bugs in this codebase; standard to ignore.
+        - identifier: missingType.generics
