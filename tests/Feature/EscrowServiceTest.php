@@ -10,7 +10,6 @@ use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
 use App\Enums\TechnicianStatus;
-use App\Enums\UserRole;
 use App\Exceptions\InsufficientBalanceException;
 use App\Models\Dispute;
 use App\Models\Order;
@@ -19,6 +18,7 @@ use App\Models\Technician;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\EscrowService;
+use Database\Seeders\PlatformSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -34,6 +34,7 @@ class EscrowServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(PlatformSeeder::class);
         $this->escrow = app(EscrowService::class);
     }
 
@@ -49,10 +50,12 @@ class EscrowServiceTest extends TestCase
             'type' => 'deposit',
             'balance_type' => BalanceType::Available,
             'amount' => $balance,
-            'reference' => 'test:seed:' . $wallet->id,
+            'reference' => 'test:seed:'.$wallet->id,
             'description' => 'test seed',
         ]);
-        $wallet->update(['available_balance' => $balance]);
+
+        $wallet->available_balance = $balance;
+        $wallet->save();
 
         return $client;
     }
@@ -113,7 +116,7 @@ class EscrowServiceTest extends TestCase
         $client = $this->makeClient('500.00');
         $order = $this->makeOrder($client);
 
-        $payment = $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-1');
+        $payment = $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-1', 'op-hold-1');
 
         $this->assertSame(PaymentStatus::Held, $payment->status);
         $this->assertSame(450.00, (float) $this->wallet($client)->available_balance);
@@ -127,8 +130,8 @@ class EscrowServiceTest extends TestCase
         $client = $this->makeClient('500.00');
         $order = $this->makeOrder($client);
 
-        $first = $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-dup');
-        $second = $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-dup');
+        $first = $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-dup', 'op-hold-dup');
+        $second = $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-dup', 'op-hold-dup');
 
         $this->assertTrue($first->is($second), 'second call must return the SAME payment');
         $this->assertSame(1, $order->payments()->count());
@@ -142,7 +145,7 @@ class EscrowServiceTest extends TestCase
         $order = $this->makeOrder($client);
 
         try {
-            $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-poor');
+            $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-poor', 'op-hold-poor');
             $this->fail('expected InsufficientBalanceException');
         } catch (InsufficientBalanceException) {
             // expected
@@ -161,9 +164,9 @@ class EscrowServiceTest extends TestCase
         $client = $this->makeClient('500.00');
         $tech = $this->makeTechnician();
         $order = $this->makeOrder($client, $tech, OrderStatus::Completed);
-        $this->escrow->holdFunds($order, '100.00', PaymentType::Repair, 'key-rel');
+        $this->escrow->holdFunds($order, '100.00', PaymentType::Repair, 'key-rel', 'op-hold-rel');
 
-        $this->escrow->releaseFunds($order);
+        $this->escrow->releaseFunds($order, 'op-release-rel');
 
         // commission_rate snapshot = 0.10 → tech gets 90, platform keeps 10
         $this->assertSame(90.00, (float) $this->wallet($tech->user)->available_balance);
@@ -179,7 +182,7 @@ class EscrowServiceTest extends TestCase
         $client = $this->makeClient('500.00');
         $tech = $this->makeTechnician();
         $order = $this->makeOrder($client, $tech, OrderStatus::Disputed);
-        $this->escrow->holdFunds($order, '100.00', PaymentType::Repair, 'key-disp');
+        $this->escrow->holdFunds($order, '100.00', PaymentType::Repair, 'key-disp', 'op-hold-disp');
         Dispute::create([
             'order_id' => $order->id,
             'raised_by' => $client->id,
@@ -187,7 +190,7 @@ class EscrowServiceTest extends TestCase
             'status' => DisputeStatus::Open,
         ]);
 
-        $this->escrow->releaseFunds($order); // must be a silent no-op, not an exception
+        $this->escrow->releaseFunds($order, 'op-release-disp'); // must be a silent no-op, not an exception
 
         $this->assertSame(0.00, (float) $this->wallet($tech->user)->available_balance, 'disputed money must stay frozen');
         $this->assertSame(100.00, (float) $this->wallet($client)->held_balance);
@@ -200,9 +203,9 @@ class EscrowServiceTest extends TestCase
     {
         $client = $this->makeClient('500.00');
         $order = $this->makeOrder($client);
-        $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-ref');
+        $this->escrow->holdFunds($order, '50.00', PaymentType::Inspection, 'key-ref', 'op-hold-ref');
 
-        $this->escrow->refund($order, '35.00'); // e.g. late-cancel split: 15 stays for the technician
+        $this->escrow->refund($order, '35.00', 'op-refund-ref'); // e.g. late-cancel split: 15 stays for the technician
 
         $wallet = $this->wallet($client);
         $this->assertSame(485.00, (float) $wallet->available_balance); // 450 + 35 back

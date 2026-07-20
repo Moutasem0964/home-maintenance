@@ -34,8 +34,8 @@ sequenceDiagram
     API->>API: status completed, dispute_deadline_at = now + 48h
     Note over CRON: after deadline passes
     CRON->>ESC: releaseFunds(order)
-    ESC->>ESC: lockForUpdate; completed AND no open dispute?
-    ESC->>LED: release -[X+Y] held(client) / payout +[X+Y-fee] avail(tech) / commission +fee(platform)
+    ESC->>ESC: lockForUpdate, then check completed AND no open dispute
+    ESC->>LED: release from client held, payout to tech available, commission to platform
 ```
 
 ## Dispute path: the race EscrowService must win
