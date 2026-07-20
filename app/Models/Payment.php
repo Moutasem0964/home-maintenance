@@ -9,7 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** Commercial record of one escrow payment lifecycle on an order. */
+/**
+ * Commercial record of one escrow payment lifecycle on an order.
+ *
+ * @property PaymentStatus $status
+ * @property numeric-string $amount
+ * @property numeric-string $commission_amount
+ */
 class Payment extends Model
 {
     use HasFactory;

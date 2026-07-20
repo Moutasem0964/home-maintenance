@@ -12,14 +12,34 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property OrderStatus $status
+ * @property numeric-string $commission_rate
+ * @property numeric-string $commission_amount
+ * @property numeric-string $inspection_fee
+ */
 class Order extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'client_id', 'technician_id', 'service_category_id', 'address_id', 'parent_order_id',
-        'lat', 'lng', 'description', 'kind', 'type', 'scheduled_at', 'status',
-        'dispute_deadline_at', 'warranty_until', 'commission_rate', 'commission_amount', 'inspection_fee',
+        'client_id',
+        'technician_id',
+        'service_category_id',
+        'address_id',
+        'parent_order_id',
+        'lat',
+        'lng',
+        'description',
+        'kind',
+        'type',
+        'scheduled_at',
+        'status',
+        'dispute_deadline_at',
+        'warranty_until',
+        'commission_rate',
+        'commission_amount',
+        'inspection_fee',
     ];
 
     /** closure_code is server-side only — never expose it through the API. */
@@ -45,11 +65,13 @@ class Order extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    /** @return BelongsTo<Technician, $this> */
     public function technician(): BelongsTo
     {
         return $this->belongsTo(Technician::class);
@@ -100,6 +122,7 @@ class Order extends Model
         return $this->hasMany(OrderEvent::class);
     }
 
+    /** @return HasMany<Payment, $this> */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
@@ -118,5 +141,10 @@ class Order extends Model
     public function conversation(): HasOne
     {
         return $this->hasOne(Conversation::class);
+    }
+
+    public function hasOpenDispute(): bool
+    {
+        return $this->dispute()->whereNull('resolved_at')->exists();
     }
 }
