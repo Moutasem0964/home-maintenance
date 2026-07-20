@@ -52,7 +52,7 @@ return new class extends Migration
             $table->string('type', 20);         // enum TxnType
             $table->string('balance_type', 20); // enum BalanceType (available|held)
             $table->decimal('amount', 12, 2);   // signed
-            $table->string('reference', 100)->unique(); // duplicate-entry guard
+            $table->string('reference', 255)->unique(); // duplicate-entry guard; fits escrow ref + UUID/ULID operationId
             $table->string('description')->nullable();
             $table->timestamp('created_at')->nullable(); // append-only: no updated_at, never deleted
 

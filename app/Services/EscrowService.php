@@ -14,6 +14,16 @@ use App\Models\Payment;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Escrow money engine: hold / release / refund against an append-only wallet ledger.
+ *
+ * CONTRACT — every method takes a caller-supplied $operationId that must be a
+ * STABLE, BOUNDED token (a UUID or ULID), derived from the domain event, never
+ * free text. It is embedded in the ledger `reference` (a unique index): a retry
+ * of the same operation reuses the id and collides (idempotent), while distinct
+ * operations use distinct ids. The `reference` column is 255 chars — keep the id
+ * bounded or the ledger insert will fail.
+ */
 class EscrowService
 {
     public function __construct(

@@ -17,7 +17,7 @@ sequenceDiagram
     participant CRON as Scheduler
 
     C->>API: POST /orders (UC-01)
-    API->>ESC: holdFunds(order, inspection_fee, inspection, key1)
+    API->>ESC: holdFunds(order, inspection_fee, inspection, key1, op1)
     ESC->>LED: hold pair: available -X, held +X
     API->>ASG: dispatchNearest(order)
     ASG-->>T: FCM: dispatch offer (90s)
@@ -26,14 +26,14 @@ sequenceDiagram
     T->>API: arrived (order in_progress)
     T->>API: POST quote (UC-02: labor + parts + warranty)
     C->>API: approve quote
-    API->>ESC: holdFunds(order, quote_total, repair, key2)
+    API->>ESC: holdFunds(order, quote_total, repair, key2, op2)
     ESC->>LED: hold pair: available -Y, held +Y
     T->>API: work documented (before/after photos)
     C-->>T: closure code (spoken in person)
     T->>API: submit code — verified SERVER-side only
     API->>API: status completed, dispute_deadline_at = now + 48h
     Note over CRON: after deadline passes
-    CRON->>ESC: releaseFunds(order)
+    CRON->>ESC: releaseFunds(order, op3)
     ESC->>ESC: lockForUpdate, then check completed AND no open dispute
     ESC->>LED: release from client held, payout to tech available, commission to platform
 ```
