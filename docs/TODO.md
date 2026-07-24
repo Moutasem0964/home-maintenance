@@ -56,6 +56,13 @@ an oversight.
   *When:* small standalone chore PR — expect it to surface a few existing typos.
 - **Phone normalization + validation.** Store normalized `+9639XXXXXXXX`;
   validate format in the register FormRequest. *When:* auth branch.
+- **OTP phone verification (SRS UC-22 registration, UC-21 recovery).** Its own
+  slice after basic auth. Needs: an `SmsSender` interface with a `LogSmsSender`
+  (dev) + `Notification::fake()` (tests) and a real gateway swapped via config
+  later; a code store (cache/table) with 5-min expiry; per SRS UC-21 rate limit
+  (3 wrong attempts → 15-min lockout) + resend throttle. Then gate login on a
+  non-null `users.phone_verified_at` (column added in the auth branch, left null
+  by register). *When:* feature/phone-verification, immediately after feature/auth.
 - **Relation generics repo-wide.** Only the ~6 relations the escrow service
   traverses have `@return BelongsTo<Model, $this>` generics; the rest are still
   silenced by the `missingType.generics` ignore in phpstan.neon. Add generics to
