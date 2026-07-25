@@ -29,6 +29,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'is_banned' => 'boolean',
+            'phone_verified_at' => 'datetime',
         ];
     }
 
