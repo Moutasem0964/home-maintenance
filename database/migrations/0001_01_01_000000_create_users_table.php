@@ -18,6 +18,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('phone', 20)->unique();
+            $table->timestamp('phone_verified_at')->nullable();
             $table->string('password');
             $table->string('role', 20)->index(); // enum App\Enums\UserRole
             $table->string('fcm_token')->nullable();

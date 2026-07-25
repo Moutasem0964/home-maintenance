@@ -1,13 +1,10 @@
 <?php
 
+// Defaults per SRS UC-21 (4-digit code, 5-min validity, 3 attempts, 15-min lockout).
 return [
-    'length' => 4,
-
-    'ttl_minutes' => 5,
-
-    'max_attempts' => 3,
-
-    'lockout_minutes' => 15,
-
-    'resend_cooldown_seconds' => 60,
+    'length' => (int) env('OTP_LENGTH', 4),
+    'ttl_minutes' => (int) env('OTP_TTL_MINUTES', 5),
+    'max_attempts' => (int) env('OTP_MAX_ATTEMPTS', 3),
+    'lockout_minutes' => (int) env('OTP_LOCKOUT_MINUTES', 15),
+    'resend_cooldown_seconds' => (int) env('OTP_RESEND_COOLDOWN_SECONDS', 60),
 ];

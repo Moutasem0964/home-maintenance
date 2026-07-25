@@ -22,11 +22,21 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'phone' => '09'.fake()->unique()->numerify('########'),
+            'phone' => '+9639'.fake()->unique()->numerify('########'),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::Client,
             'remember_token' => Str::random(10),
         ];
+    }
+
+    public function verified(): static
+    {
+        return $this->state(fn (array $attributes) => ['phone_verified_at' => now()]);
+    }
+
+    public function banned(): static
+    {
+        return $this->state(fn (array $attributes) => ['is_banned' => true]);
     }
 
     public function technicianRole(): static

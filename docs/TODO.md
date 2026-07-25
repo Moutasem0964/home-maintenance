@@ -63,6 +63,14 @@ an oversight.
   (3 wrong attempts → 15-min lockout) + resend throttle. Then gate login on a
   non-null `users.phone_verified_at` (column added in the auth branch, left null
   by register). *When:* feature/phone-verification, immediately after feature/auth.
+- **Real SmsSender driver (last step of the auth work).** Build + test the whole
+  OTP flow with LogSmsSender (dev) / FakeSmsSender (tests) first. Candidates for
+  live delivery, each a ~15-line `SmsSender` implementation selected via
+  `config('sms.driver')`, credentials in `.env` (never committed): **SMS Chef**
+  (real SMS via own Android SIM, free tier ~100/day — best SRS fit) or **OpenWA**
+  (OTP over WhatsApp, self-hosted). No telecom API needed. Verification without a
+  gateway: tests assert via FakeSmsSender; dev reads the code from
+  `storage/logs/laravel.log` via LogSmsSender.
 - **Relation generics repo-wide.** Only the ~6 relations the escrow service
   traverses have `@return BelongsTo<Model, $this>` generics; the rest are still
   silenced by the `missingType.generics` ignore in phpstan.neon. Add generics to
