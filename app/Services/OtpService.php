@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\SmsSender;
+use App\Exceptions\OtpThrottledException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 
@@ -14,6 +15,15 @@ class OtpService
 
     public function sendCode(string $phone, string $purpose): void
     {
+        // SRS UC-21: no new code while frozen, and not more than once per cooldown.
+        if (Cache::has($this->lockoutKey($phone, $purpose))) {
+            throw new OtpThrottledException('Too many attempts. Try again later.');
+        }
+
+        if (Cache::has($this->cooldownKey($phone, $purpose))) {
+            throw new OtpThrottledException('Please wait before requesting another code.');
+        }
+
         $code = $this->generateCode();
 
         Cache::put(
@@ -23,6 +33,12 @@ class OtpService
         );
 
         Cache::forget($this->attemptsKey($phone, $purpose));
+
+        Cache::put(
+            $this->cooldownKey($phone, $purpose),
+            true,
+            now()->addSeconds((int) config('otp.resend_cooldown_seconds')),
+        );
 
         $this->sms->send($phone, $this->buildMessage($code));
     }
@@ -93,5 +109,10 @@ class OtpService
     private function lockoutKey(string $phone, string $purpose): string
     {
         return "otp:lockout:{$purpose}:{$phone}";
+    }
+
+    private function cooldownKey(string $phone, string $purpose): string
+    {
+        return "otp:cooldown:{$purpose}:{$phone}";
     }
 }

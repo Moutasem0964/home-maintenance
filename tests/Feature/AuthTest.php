@@ -158,6 +158,54 @@ class AuthTest extends TestCase
             ->assertStatus(403);
     }
 
+    // ── password reset (UC-21) ───────────────────────────────────────────────
+
+    public function test_password_reset_updates_password_and_revokes_sessions(): void
+    {
+        $user = User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);
+        $user->createToken('mobile'); // an existing session
+
+        $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
+        $code = $this->sms->lastCodeFor('+963912345678');
+
+        $this->postJson('/api/auth/password/reset', [
+            'phone' => '0912345678',
+            'code' => $code,
+            'password' => 'NewPass123',
+            'password_confirmation' => 'NewPass123',
+        ])->assertOk();
+
+        $this->assertSame(0, $user->tokens()->count(), 'old sessions must be revoked');
+        $this->postJson('/api/auth/login', ['phone' => '0912345678', 'password' => 'NewPass123'])->assertOk();
+        $this->postJson('/api/auth/login', ['phone' => '0912345678', 'password' => 'OldPass123'])->assertStatus(422);
+    }
+
+    public function test_password_forgot_does_not_reveal_unknown_phone(): void
+    {
+        $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
+
+        $this->assertFalse($this->sms->sentTo('+963912345678'));
+    }
+
+    public function test_password_reset_rejects_a_wrong_code(): void
+    {
+        User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);
+        $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
+
+        $this->postJson('/api/auth/password/reset', [
+            'phone' => '0912345678',
+            'code' => '0000',
+            'password' => 'NewPass123',
+            'password_confirmation' => 'NewPass123',
+        ])->assertStatus(422);
+    }
+
+    public function test_register_start_enforces_the_resend_cooldown(): void
+    {
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])->assertOk();
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])->assertStatus(429);
+    }
+
     // ── session ──────────────────────────────────────────────────────────────
 
     public function test_me_requires_a_token(): void

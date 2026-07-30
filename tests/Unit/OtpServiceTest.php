@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Exceptions\OtpThrottledException;
 use App\Services\OtpService;
 use Illuminate\Support\Facades\Cache;
 use Tests\Support\FakeSmsSender;
@@ -40,6 +41,7 @@ class OtpServiceTest extends TestCase
             'otp.ttl_minutes' => 5,
             'otp.max_attempts' => 3,
             'otp.lockout_minutes' => 15,
+            'otp.resend_cooldown_seconds' => 60,
         ]);
 
         $this->sms = new FakeSmsSender;
@@ -114,5 +116,27 @@ class OtpServiceTest extends TestCase
         $code = $this->sms->lastCodeFor(self::PHONE);
 
         $this->assertFalse($this->otp->verifyCode(self::PHONE, 'password_reset', $code));
+    }
+
+    public function test_resend_is_blocked_during_cooldown(): void
+    {
+        $this->otp->sendCode(self::PHONE, self::PURPOSE);
+
+        $this->expectException(OtpThrottledException::class);
+        $this->otp->sendCode(self::PHONE, self::PURPOSE);
+    }
+
+    public function test_send_is_blocked_during_lockout(): void
+    {
+        $this->otp->sendCode(self::PHONE, self::PURPOSE);
+        $code = $this->sms->lastCodeFor(self::PHONE);
+        $wrong = $code === '0000' ? '1111' : '0000';
+
+        $this->otp->verifyCode(self::PHONE, self::PURPOSE, $wrong);
+        $this->otp->verifyCode(self::PHONE, self::PURPOSE, $wrong);
+        $this->otp->verifyCode(self::PHONE, self::PURPOSE, $wrong);
+
+        $this->expectException(OtpThrottledException::class);
+        $this->otp->sendCode(self::PHONE, self::PURPOSE);
     }
 }

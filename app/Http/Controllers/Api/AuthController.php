@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\PasswordForgotRequest;
+use App\Http\Requests\Auth\PasswordResetRequest;
 use App\Http\Requests\Auth\RegisterStartRequest;
 use App\Http\Requests\Auth\RegisterVerifyRequest;
 use App\Http\Resources\UserResource;
@@ -18,6 +20,8 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     private const REGISTER_PURPOSE = 'register';
+
+    private const RESET_PURPOSE = 'password_reset';
 
     public function __construct(
         private readonly OtpService $otp,
@@ -66,6 +70,34 @@ class AuthController extends Controller
             'token' => $this->auth->issueToken($user),
             'user' => new UserResource($user),
         ]);
+    }
+
+    public function passwordForgot(PasswordForgotRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        // Only send if the account exists, but always return the same response (no enumeration).
+        if (User::where('phone', $data['phone'])->exists()) {
+            $this->otp->sendCode($data['phone'], self::RESET_PURPOSE);
+        }
+
+        return response()->json(['message' => 'If the account exists, a reset code was sent.']);
+    }
+
+    public function passwordReset(PasswordResetRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        if (! $this->otp->verifyCode($data['phone'], self::RESET_PURPOSE, $data['code'])) {
+            throw ValidationException::withMessages(['code' => 'The verification code is invalid or expired.']);
+        }
+
+        $user = User::where('phone', $data['phone'])->firstOrFail();
+        $user->password = (string) $data['password'];
+        $user->save();
+        $user->tokens()->delete(); // revoke all sessions on password change
+
+        return response()->json(['message' => 'Password reset. Please log in.']);
     }
 
     public function logout(Request $request): JsonResponse
