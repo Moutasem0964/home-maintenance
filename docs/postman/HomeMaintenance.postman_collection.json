@@ -9,7 +9,7 @@
     "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
   },
   "variable": [
-    { "key": "base_url", "value": "http://home-maintenance.test", "type": "string" },
+    { "key": "base_url", "value": "https://api.example.com", "type": "string" },
     { "key": "token", "value": "", "type": "string" }
   ],
   "item": [
