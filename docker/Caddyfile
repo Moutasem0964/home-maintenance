@@ -1,4 +1,7 @@
-# Replace api.example.com with your real domain. Caddy fetches a Let's Encrypt cert automatically.
-api.example.com {
+home-maintenance.me {
     reverse_proxy app:80
+}
+
+www.home-maintenance.me {
+    redir https://home-maintenance.me{uri} permanent
 }
