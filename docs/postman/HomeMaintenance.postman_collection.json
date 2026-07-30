@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "Home Maintenance API",
+    "description": "Domain-organized collection. Set {{base_url}}; login/register auto-saves {{token}} for authed requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://home-maintenance.test", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register — Start (send OTP)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"phone\": \"0912345678\",\n  \"name\": \"Test Client\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/register/start", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "start"] },
+            "description": "Sends a 4-digit OTP. In dev (SMS_DRIVER=log) read it from storage/logs/laravel.log."
+          }
+        },
+        {
+          "name": "Register — Verify (create account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+              ] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"0000\",\n  \"name\": \"Test Client\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/register/verify", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "verify"] },
+            "description": "Verifies the OTP, creates a client + wallet, returns a token (auto-saved to {{token}})."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+              ] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/logout", "host": ["{{base_url}}"], "path": ["api", "auth", "logout"] }
+          }
+        },
+        {
+          "name": "Password — Forgot",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"phone\": \"0912345678\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/password/forgot", "host": ["{{base_url}}"], "path": ["api", "auth", "password", "forgot"] }
+          }
+        },
+        {
+          "name": "Password — Reset",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"0000\",\n  \"password\": \"NewPass123\",\n  \"password_confirmation\": \"NewPass123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/password/reset", "host": ["{{base_url}}"], "path": ["api", "auth", "password", "reset"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/wallet", "host": ["{{base_url}}"], "path": ["api", "wallet"] }
+          }
+        },
+        {
+          "name": "Top Up",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"amount\": \"50.00\",\n  \"gateway_reference\": \"gw-{{$timestamp}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/wallet/top-up", "host": ["{{base_url}}"], "path": ["api", "wallet", "top-up"] }
+          }
+        }
+      ]
+    }
+  ]
+}
