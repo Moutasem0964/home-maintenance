@@ -187,6 +187,16 @@ class AuthTest extends TestCase
         $this->assertFalse($this->sms->sentTo('+963912345678'));
     }
 
+    public function test_password_forgot_does_not_leak_existence_via_throttling(): void
+    {
+        User::factory()->verified()->create(['phone' => '+963912345678']);
+
+        // Second call hits the resend cooldown; it must still be 200 (same as an unknown phone),
+        // otherwise a 429 would reveal that the account exists.
+        $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
+        $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
+    }
+
     public function test_password_reset_rejects_a_wrong_code(): void
     {
         User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);

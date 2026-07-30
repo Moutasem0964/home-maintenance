@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\OtpThrottledException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\PasswordForgotRequest;
@@ -77,8 +78,13 @@ class AuthController extends Controller
         $data = $request->validated();
 
         // Only send if the account exists, but always return the same response (no enumeration).
+        // Swallow throttling too — a 429 for existing accounts only would leak existence.
         if (User::where('phone', $data['phone'])->exists()) {
-            $this->otp->sendCode($data['phone'], self::RESET_PURPOSE);
+            try {
+                $this->otp->sendCode($data['phone'], self::RESET_PURPOSE);
+            } catch (OtpThrottledException) {
+                // no-op: keep the response identical to the unknown-phone case
+            }
         }
 
         return response()->json(['message' => 'If the account exists, a reset code was sent.']);
