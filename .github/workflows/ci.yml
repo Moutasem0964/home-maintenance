@@ -92,3 +92,28 @@ jobs:
             git pull origin main
             sudo docker compose up -d --build
             sudo docker compose exec -T app php artisan migrate --force
+
+  sync-postman:
+    runs-on: ubuntu-latest
+    needs: [quality, tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync collection to Postman cloud
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+          COLLECTION_UID: ${{ secrets.POSTMAN_COLLECTION_UID }}
+        run: |
+          if [ -z "$POSTMAN_API_KEY" ] || [ -z "$COLLECTION_UID" ]; then
+            echo "Postman secrets not set — skipping sync."; exit 0
+          fi
+          jq -n --slurpfile c docs/postman/HomeMaintenance.postman_collection.json \
+            '{collection: $c[0]}' > payload.json
+          code=$(curl -sS -o resp.json -w "%{http_code}" -X PUT \
+            "https://api.getpostman.com/collections/${COLLECTION_UID}" \
+            -H "X-Api-Key: ${POSTMAN_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d @payload.json)
+          echo "HTTP $code"; jq '.collection.uid // .error // .' resp.json
+          [ "$code" = "200" ] || { echo "Postman sync failed"; exit 1; }
