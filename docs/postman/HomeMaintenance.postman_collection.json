@@ -169,6 +169,71 @@
           }
         }
       ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "List Service Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"] },
+            "description": "PLANNED — not implemented yet. Returns active service categories (electric, plumbing, AC, appliances)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Addresses",
+      "item": [
+        {
+          "name": "List My Addresses",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/addresses", "host": ["{{base_url}}"], "path": ["api", "addresses"] },
+            "description": "PLANNED — the authenticated client's saved addresses."
+          }
+        },
+        {
+          "name": "Create Address",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"label\": \"Home\",\n  \"line1\": \"Al-Mazzeh St 12\",\n  \"city\": \"Damascus\",\n  \"latitude\": 33.5138,\n  \"longitude\": 36.2765,\n  \"is_default\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/addresses", "host": ["{{base_url}}"], "path": ["api", "addresses"] },
+            "description": "PLANNED — create a new client address."
+          }
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"label\": \"Work\",\n  \"line1\": \"Office Rd 5\",\n  \"city\": \"Damascus\",\n  \"is_default\": false\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/addresses/1", "host": ["{{base_url}}"], "path": ["api", "addresses", "1"] },
+            "description": "PLANNED — update an address by id."
+          }
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/addresses/1", "host": ["{{base_url}}"], "path": ["api", "addresses", "1"] },
+            "description": "PLANNED — delete an address by id."
+          }
+        }
+      ]
     }
   ]
 }
