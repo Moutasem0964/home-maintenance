@@ -11,7 +11,8 @@
   "variable": [
     { "key": "base_url", "value": "https://home-maintenance.me", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
-    { "key": "otp_code", "value": "", "type": "string" }
+    { "key": "otp_code", "value": "", "type": "string" },
+    { "key": "reset_code", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -106,6 +107,15 @@
         },
         {
           "name": "Password — Forgot",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.debug_code) { pm.collectionVariables.set('reset_code', json.debug_code); }"
+              ] }
+            }
+          ],
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
@@ -127,7 +137,7 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"0000\",\n  \"password\": \"NewPass123\",\n  \"password_confirmation\": \"NewPass123\"\n}"
+              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"{{reset_code}}\",\n  \"password\": \"NewPass123\",\n  \"password_confirmation\": \"NewPass123\"\n}"
             },
             "url": { "raw": "{{base_url}}/api/auth/password/reset", "host": ["{{base_url}}"], "path": ["api", "auth", "password", "reset"] }
           }

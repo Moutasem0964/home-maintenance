@@ -85,15 +85,23 @@ class AuthController extends Controller
 
         // Only send if the account exists, but always return the same response (no enumeration).
         // Swallow throttling too — a 429 for existing accounts only would leak existence.
+        $code = null;
+
         if (User::where('phone', $data['phone'])->exists()) {
             try {
-                $this->otp->sendCode($data['phone'], self::RESET_PURPOSE);
+                $code = $this->otp->sendCode($data['phone'], self::RESET_PURPOSE);
             } catch (OtpThrottledException) {
                 // no-op: keep the response identical to the unknown-phone case
             }
         }
 
-        return response()->json(['message' => 'If the account exists, a reset code was sent.']);
+        $payload = ['message' => 'If the account exists, a reset code was sent.'];
+
+        if (config('otp.expose_code') && $code !== null) {
+            $payload['debug_code'] = $code;
+        }
+
+        return response()->json($payload);
     }
 
     public function passwordReset(PasswordResetRequest $request): JsonResponse
