@@ -13,7 +13,7 @@ class OtpService
         private readonly SmsSender $sms,
     ) {}
 
-    public function sendCode(string $phone, string $purpose): void
+    public function sendCode(string $phone, string $purpose): string
     {
         // SRS UC-21: no new code while frozen, and not more than once per cooldown.
         if (Cache::has($this->lockoutKey($phone, $purpose))) {
@@ -41,6 +41,8 @@ class OtpService
         );
 
         $this->sms->send($phone, $this->buildMessage($code));
+
+        return $code;
     }
 
     public function verifyCode(string $phone, string $purpose, string $code): bool

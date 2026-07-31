@@ -10,7 +10,8 @@
   },
   "variable": [
     { "key": "base_url", "value": "https://home-maintenance.me", "type": "string" },
-    { "key": "token", "value": "", "type": "string" }
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "otp_code", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -18,6 +19,15 @@
       "item": [
         {
           "name": "Register — Start (send OTP)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.debug_code) { pm.collectionVariables.set('otp_code', json.debug_code); }"
+              ] }
+            }
+          ],
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
@@ -49,7 +59,7 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"0000\",\n  \"name\": \"Test Client\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\"\n}"
+              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"{{otp_code}}\",\n  \"name\": \"Test Client\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\"\n}"
             },
             "url": { "raw": "{{base_url}}/api/auth/register/verify", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "verify"] },
             "description": "Verifies the OTP, creates a client + wallet, returns a token (auto-saved to {{token}})."
