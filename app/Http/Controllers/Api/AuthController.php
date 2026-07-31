@@ -33,9 +33,15 @@ class AuthController extends Controller
     {
         $data = $request->validated();
 
-        $this->otp->sendCode($data['phone'], self::REGISTER_PURPOSE);
+        $code = $this->otp->sendCode($data['phone'], self::REGISTER_PURPOSE);
 
-        return response()->json(['message' => 'Verification code sent.']);
+        $payload = ['message' => 'Verification code sent.'];
+
+        if (config('otp.expose_code')) {
+            $payload['debug_code'] = $code;
+        }
+
+        return response()->json($payload);
     }
 
     public function registerVerify(RegisterVerifyRequest $request): JsonResponse
