@@ -204,7 +204,7 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"label\": \"Home\",\n  \"line1\": \"Al-Mazzeh St 12\",\n  \"city\": \"Damascus\",\n  \"latitude\": 33.5138,\n  \"longitude\": 36.2765,\n  \"is_default\": true\n}"
+              "raw": "{\n  \"label\": \"Home\",\n  \"lat\": 33.5138,\n  \"lng\": 36.2765,\n  \"building_no\": \"12\",\n  \"floor\": \"3\",\n  \"notes\": \"Near the pharmacy\"\n}"
             },
             "url": { "raw": "{{base_url}}/api/addresses", "host": ["{{base_url}}"], "path": ["api", "addresses"] },
             "description": "PLANNED — create a new client address."
@@ -218,7 +218,7 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"label\": \"Work\",\n  \"line1\": \"Office Rd 5\",\n  \"city\": \"Damascus\",\n  \"is_default\": false\n}"
+              "raw": "{\n  \"label\": \"Work\",\n  \"lat\": 33.5100,\n  \"lng\": 36.2900,\n  \"building_no\": \"5\",\n  \"floor\": \"1\",\n  \"notes\": \"Office building\"\n}"
             },
             "url": { "raw": "{{base_url}}/api/addresses/1", "host": ["{{base_url}}"], "path": ["api", "addresses", "1"] },
             "description": "PLANNED — update an address by id."
