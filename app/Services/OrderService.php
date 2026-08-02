@@ -16,6 +16,7 @@ class OrderService
 {
     public function __construct(
         private readonly EscrowService $escrowService,
+        private readonly AssignmentService $assignmentService,
     ) {}
 
     /**
@@ -70,6 +71,10 @@ class OrderService
                     "inspection:{$operationId}",
                     "inspection:{$operationId}",
                 );
+
+                // Push the fresh order to the nearest qualified technician (best-effort:
+                // no one available yet just leaves it pending for a later re-offer).
+                $this->assignmentService->offerToNext($order);
 
                 return $order;
             });

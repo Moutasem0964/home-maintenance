@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\TechnicianController;
+use App\Http\Controllers\Api\TechnicianOfferController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('technician/me', [TechnicianController::class, 'me']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);
     Route::put('technician/availability', [TechnicianController::class, 'setAvailability']);
+
+    Route::get('technician/offers', [TechnicianOfferController::class, 'index']);
+    Route::post('technician/offers/{offer}/accept', [TechnicianOfferController::class, 'accept']);
+    Route::post('technician/offers/{offer}/decline', [TechnicianOfferController::class, 'decline']);
 
     Route::post('admin/technicians/{technician}/approve', [AdminTechnicianController::class, 'approve']);
 });

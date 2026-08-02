@@ -14,7 +14,8 @@
     { "key": "otp_code", "value": "", "type": "string" },
     { "key": "reset_code", "value": "", "type": "string" },
     { "key": "order_id", "value": "", "type": "string" },
-    { "key": "technician_id", "value": "", "type": "string" }
+    { "key": "technician_id", "value": "", "type": "string" },
+    { "key": "offer_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -349,6 +350,47 @@
               "raw": "{\n  \"is_available\": true,\n  \"current_lat\": 33.5138,\n  \"current_lng\": 36.2765\n}"
             },
             "url": { "raw": "{{base_url}}/api/technician/availability", "host": ["{{base_url}}"], "path": ["api", "technician", "availability"] }
+          }
+        },
+        {
+          "name": "Technician — My Offers",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.data && json.data[0]) { pm.collectionVariables.set('offer_id', json.data[0].id); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/technician/offers", "host": ["{{base_url}}"], "path": ["api", "technician", "offers"] },
+            "description": "Open dispatch offers for the logged-in technician. Auto-saves the first offer's id to {{offer_id}}."
+          }
+        },
+        {
+          "name": "Technician — Accept Offer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/accept", "host": ["{{base_url}}"], "path": ["api", "technician", "offers", "{{offer_id}}", "accept"] },
+            "description": "Atomically take the job. 409 if the order was already taken or the offer expired."
+          }
+        },
+        {
+          "name": "Technician — Decline Offer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"reason\": \"busy\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/decline", "host": ["{{base_url}}"], "path": ["api", "technician", "offers", "{{offer_id}}", "decline"] },
+            "description": "Decline and re-offer the order to the next nearest technician."
           }
         }
       ]

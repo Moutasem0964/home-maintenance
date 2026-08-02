@@ -6,11 +6,15 @@ use App\Enums\DispatchOfferStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * System→technician job offer ("take this job?") — NOT the price quote.
  * Audit/history of assignment attempts; the atomic accept itself is a
  * conditional state transition on the orders row (AssignmentService).
+ *
+ * @property DispatchOfferStatus $status
+ * @property Carbon $expires_at
  */
 class DispatchOffer extends Model
 {
