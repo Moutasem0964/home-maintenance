@@ -173,4 +173,14 @@ class OfferActionTest extends TestCase
         $this->actingAs($this->userOf($tech), 'sanctum')
             ->postJson("/api/technician/offers/{$offer->id}/decline")->assertStatus(409);
     }
+
+    public function test_cannot_decline_an_expired_offer(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Pending]);
+        $tech = $this->tech();
+        $offer = $this->offerFor($tech, $order, ['expires_at' => now()->subMinute()]);
+
+        $this->actingAs($this->userOf($tech), 'sanctum')
+            ->postJson("/api/technician/offers/{$offer->id}/decline")->assertStatus(409);
+    }
 }

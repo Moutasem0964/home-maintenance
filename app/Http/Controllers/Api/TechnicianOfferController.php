@@ -41,7 +41,7 @@ class TechnicianOfferController extends Controller
         $dispatchOffer = $technician->dispatchOffers()->findOrFail($offer);
 
         try {
-            $order = $assignmentService->accept($dispatchOffer, $technician);
+            $order = $assignmentService->accept($dispatchOffer);
 
             return new OrderResource($order);
         } catch (OfferUnavailableException $e) {

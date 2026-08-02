@@ -72,9 +72,9 @@ class AssignmentService
      * technician and expire the losing offers. Two simultaneous accepts serialize
      * here — exactly one wins, the other gets OfferUnavailableException.
      */
-    public function accept(DispatchOffer $offer, Technician $technician): Order
+    public function accept(DispatchOffer $offer): Order
     {
-        return DB::transaction(function () use ($offer, $technician) {
+        return DB::transaction(function () use ($offer) {
             /** @var Order $order */
             $order = Order::whereKey($offer->order_id)->lockForUpdate()->firstOrFail();
             /** @var DispatchOffer $lockedOffer */
@@ -86,8 +86,9 @@ class AssignmentService
                 throw new OfferUnavailableException('This offer can no longer be accepted.');
             }
 
+            // Assign from the offer itself so a wrong technician can never be attached.
             $order->update([
-                'technician_id' => $technician->id,
+                'technician_id' => $lockedOffer->technician_id,
                 'status' => OrderStatus::Accepted,
             ]);
 
@@ -112,10 +113,14 @@ class AssignmentService
     public function decline(DispatchOffer $offer, ?string $reason = null): ?DispatchOffer
     {
         return DB::transaction(function () use ($offer, $reason) {
+            // Same lock order as accept() (order then offer) so the re-offer can't
+            // interleave with a concurrent accept on the same order.
+            /** @var Order $order */
+            $order = Order::whereKey($offer->order_id)->lockForUpdate()->firstOrFail();
             /** @var DispatchOffer $lockedOffer */
             $lockedOffer = DispatchOffer::whereKey($offer->id)->lockForUpdate()->firstOrFail();
 
-            if ($lockedOffer->status !== DispatchOfferStatus::Offered) {
+            if ($lockedOffer->status !== DispatchOfferStatus::Offered || $lockedOffer->expires_at->isPast()) {
                 throw new OfferUnavailableException('This offer can no longer be declined.');
             }
 
@@ -126,9 +131,6 @@ class AssignmentService
             ]);
 
             OrderEvent::create(['order_id' => $lockedOffer->order_id, 'event_type' => OrderEventType::OfferRejected]);
-
-            /** @var Order $order */
-            $order = $lockedOffer->order()->firstOrFail();
 
             return $this->offerToNext($order);
         });
@@ -144,12 +146,16 @@ class AssignmentService
         $stale = DispatchOffer::query()
             ->where('status', DispatchOfferStatus::Offered)
             ->where('expires_at', '<', now())
-            ->get();
+            ->lazyById(200);
 
         $expired = 0;
 
         foreach ($stale as $offer) {
             $wasExpired = DB::transaction(function () use ($offer): bool {
+                // Lock the order first (same order as accept) so expire + reassign
+                // serializes cleanly with a concurrent accept on the same order.
+                /** @var Order $order */
+                $order = Order::whereKey($offer->order_id)->lockForUpdate()->firstOrFail();
                 /** @var DispatchOffer $locked */
                 $locked = DispatchOffer::whereKey($offer->id)->lockForUpdate()->firstOrFail();
 
@@ -161,8 +167,6 @@ class AssignmentService
                 $locked->update(['status' => DispatchOfferStatus::Expired]);
                 OrderEvent::create(['order_id' => $locked->order_id, 'event_type' => OrderEventType::OfferExpired]);
 
-                /** @var Order $order */
-                $order = $locked->order()->firstOrFail();
                 $this->offerToNext($order);
 
                 return true;
