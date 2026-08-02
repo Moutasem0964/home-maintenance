@@ -45,8 +45,13 @@ an oversight.
 - **Scheduled orders + appointments flow.** `book / confirm / activate / cancel`
   in a `SchedulingService`; `activateDueAppointments` + `remindUpcomingAppointments`
   cron jobs. *When:* scheduling branch.
-- **dispatch_offers reassign-on-timeout flow.** `offerToNext`, expiry cron.
-  *When:* dispatch branch.
+- **Nearest-tech is a squared-euclidean approximation.** `AssignmentService`
+  orders by `(lat-x)^2 + (lng-y)^2` (portable, no DB math funcs). Fine at city
+  scale; swap for haversine + the bounding-box prefilter (SRS note 13) when the
+  tech pool grows. *When:* performance/scale pass.
+- **Technician withdraw-after-accept.** `OrderEventType::TechnicianWithdrew`
+  exists but no endpoint drops an accepted job and re-dispatches. *When:*
+  order-lifecycle / cancellation branch.
 
 ## Cross-cutting hardening
 
@@ -78,7 +83,26 @@ an oversight.
   *When:* standalone chore PR (or incrementally per branch as relations get used).
 - **Model @property docblocks repo-wide.** Enum/decimal columns need
   `@property` lines so Larastan sees runtime types (done for User, Technician,
-  AppSetting, Order, Wallet, Payment; do the rest as they're used in services).
+  AppSetting, Order, Wallet, Payment, DispatchOffer; do the rest as used).
+
+## Technician onboarding (feature/technician-onboarding)
+
+- **No admin management or admin auth yet.** `admin/technicians/{id}/approve` is
+  gated by an inline `abort_unless(role === Admin)`, and admins exist only via
+  `AdminSeeder` (a seeded admin logs in through the normal endpoint to get a
+  token). No admin registration/management API on purpose. *When:* Filament
+  admin-panel branch — brings admin UI + web session auth for all admin actions.
+- **Role check is inline, not middleware.** Role gates live in the controllers.
+  Extract to `role:admin` / `role:technician` middleware once those routes grow.
+  *When:* dispatch branch or a chore PR.
+- **Availability allowed while pending.** A `pending` technician can set
+  `is_available = true`; dispatch gates on `status = Active`, so it's inert until
+  approval. Decide whether to reject going-available before approval for clearer
+  feedback. *When:* dispatch branch.
+- **KYC document upload deferred.** Encrypted `id_doc/selfie/criminal_record/proof`
+  columns exist but no upload endpoint — needs file storage. *When:* its own slice.
+- **Reject / ban / probation transitions + `daily_order_limit`.** Only
+  pending→active is wired. *When:* admin / dispute branches.
 
 ## Product / team decisions (not code)
 

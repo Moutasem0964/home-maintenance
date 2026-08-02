@@ -2,28 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\ResolvesTechnician;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Technician\SetAvailabilityRequest;
 use App\Http\Requests\Technician\SetServicesRequest;
 use App\Http\Resources\TechnicianResource;
-use App\Models\Technician;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class TechnicianController extends Controller
 {
-    /** The caller's own technician profile — 403 if they are not a technician. */
-    private function technicianFor(Request $request): Technician
-    {
-        /** @var User $user */
-        $user = $request->user();
-
-        /** @var Technician|null $technician */
-        $technician = $user->technician()->first();
-        abort_if($technician === null, 403, 'This account is not a technician.');
-
-        return $technician;
-    }
+    use ResolvesTechnician;
 
     public function me(Request $request): TechnicianResource
     {
