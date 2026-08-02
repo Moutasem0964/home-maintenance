@@ -13,7 +13,8 @@
     { "key": "token", "value": "", "type": "string" },
     { "key": "otp_code", "value": "", "type": "string" },
     { "key": "reset_code", "value": "", "type": "string" },
-    { "key": "order_id", "value": "", "type": "string" }
+    { "key": "order_id", "value": "", "type": "string" },
+    { "key": "technician_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -276,6 +277,78 @@
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Technician",
+      "item": [
+        {
+          "name": "Register Technician",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+              ] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"phone\": \"0913333333\",\n  \"code\": \"{{otp_code}}\",\n  \"name\": \"Tech Guy\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\",\n  \"charter_accepted\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/register/technician", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "technician"] },
+            "description": "Run Auth > Register — Start first with this phone so {{otp_code}} is set. Creates a technician (status=pending) and logs you in as them (saves {{token}})."
+          }
+        },
+        {
+          "name": "Approve Technician (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/approve", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "approve"] },
+            "description": "Admin only. Log in as an admin (Auth > Login) so {{token}} is an admin token, set {{technician_id}}, then approve → status active."
+          }
+        },
+        {
+          "name": "Technician — Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/technician/me", "host": ["{{base_url}}"], "path": ["api", "technician", "me"] }
+          }
+        },
+        {
+          "name": "Technician — Set Services",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"service_category_ids\": [1, 2]\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/technician/services", "host": ["{{base_url}}"], "path": ["api", "technician", "services"] }
+          }
+        },
+        {
+          "name": "Technician — Set Availability",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"is_available\": true,\n  \"current_lat\": 33.5138,\n  \"current_lng\": 36.2765\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/technician/availability", "host": ["{{base_url}}"], "path": ["api", "technician", "availability"] }
           }
         }
       ]
