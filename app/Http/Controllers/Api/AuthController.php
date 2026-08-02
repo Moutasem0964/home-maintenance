@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\PasswordForgotRequest;
 use App\Http\Requests\Auth\PasswordResetRequest;
 use App\Http\Requests\Auth\RegisterStartRequest;
 use App\Http\Requests\Auth\RegisterVerifyRequest;
+use App\Http\Requests\Auth\TechnicianRegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuthService;
@@ -53,6 +54,22 @@ class AuthController extends Controller
         }
 
         $user = $this->authService->registerClient($data['phone'], $data['name'], $data['password']);
+
+        return response()->json([
+            'token' => $this->authService->issueToken($user),
+            'user' => new UserResource($user),
+        ], 201);
+    }
+
+    public function registerTechnician(TechnicianRegisterRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        if (! $this->otpService->verifyCode($data['phone'], self::REGISTER_PURPOSE, $data['code'])) {
+            throw ValidationException::withMessages(['code' => 'The verification code is invalid or expired.']);
+        }
+
+        $user = $this->authService->registerTechnician($data['phone'], $data['name'], $data['password']);
 
         return response()->json([
             'token' => $this->authService->issueToken($user),

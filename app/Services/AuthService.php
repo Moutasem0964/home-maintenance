@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\TechnicianStatus;
 use App\Enums\UserRole;
+use App\Models\Technician;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +30,36 @@ class AuthService
             $user->save();
 
             Wallet::create(['user_id' => $user->id]);
+
+            return $user;
+        });
+    }
+
+    /**
+     * Create a verified technician account (profile starts pending admin approval)
+     * plus its wallet in one transaction. Role is fixed to Technician here — never
+     * taken from request input.
+     */
+    public function registerTechnician(string $phone, string $name, string $password): User
+    {
+        return DB::transaction(function () use ($phone, $name, $password) {
+            $user = User::create([
+                'name' => $name,
+                'phone' => $phone,
+                'password' => $password,
+                'role' => UserRole::Technician,
+            ]);
+
+            $user->phone_verified_at = now();
+            $user->save();
+
+            Wallet::create(['user_id' => $user->id]);
+
+            Technician::create([
+                'user_id' => $user->id,
+                'status' => TechnicianStatus::Pending,
+                'charter_accepted_at' => now(),
+            ]);
 
             return $user;
         });

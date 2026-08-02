@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +15,7 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::post('password/forgot', [AuthController::class, 'passwordForgot'])->middleware('throttle:6,1');
     Route::post('password/reset', [AuthController::class, 'passwordReset'])->middleware('throttle:6,1');
+    Route::post('register/technician', [AuthController::class, 'registerTechnician'])->middleware('throttle:6,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
@@ -28,4 +31,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('addresses', AddressController::class);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
+
+    Route::get('technician/me', [TechnicianController::class, 'me']);
+    Route::put('technician/services', [TechnicianController::class, 'setServices']);
+    Route::put('technician/availability', [TechnicianController::class, 'setAvailability']);
+
+    Route::post('admin/technicians/{technician}/approve', [AdminTechnicianController::class, 'approve']);
 });
