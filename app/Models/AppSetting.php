@@ -29,17 +29,25 @@ class AppSetting extends Model
 
     public static function get(string $key, mixed $default = null): mixed
     {
-        $setting = Cache::remember("app_setting.{$key}", 300, fn () => static::find($key));
+        // Cache the resolved scalar value, NEVER the Eloquent model. A serialized
+        // model round-tripped through Redis returns as an incomplete object and
+        // throws on property access (works with the array cache driver, breaks on
+        // Redis — a test/prod parity trap).
+        $value = Cache::remember("app_setting.{$key}", 300, function () use ($key) {
+            $setting = static::find($key);
 
-        if ($setting === null) {
-            return $default;
-        }
+            if ($setting === null) {
+                return null;
+            }
 
-        return match ($setting->data_type) {
-            SettingDataType::Int => (int) $setting->value,
-            SettingDataType::Decimal => (float) $setting->value,
-            SettingDataType::Bool => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
-            default => $setting->value,
-        };
+            return match ($setting->data_type) {
+                SettingDataType::Int => (int) $setting->value,
+                SettingDataType::Decimal => (float) $setting->value,
+                SettingDataType::Bool => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
+                default => $setting->value,
+            };
+        });
+
+        return $value ?? $default;
     }
 }
