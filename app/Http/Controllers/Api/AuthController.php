@@ -25,15 +25,15 @@ class AuthController extends Controller
     private const RESET_PURPOSE = 'password_reset';
 
     public function __construct(
-        private readonly OtpService $otp,
-        private readonly AuthService $auth,
+        private readonly OtpService $otpService,
+        private readonly AuthService $authService,
     ) {}
 
     public function registerStart(RegisterStartRequest $request): JsonResponse
     {
         $data = $request->validated();
 
-        $code = $this->otp->sendCode($data['phone'], self::REGISTER_PURPOSE);
+        $code = $this->otpService->sendCode($data['phone'], self::REGISTER_PURPOSE);
 
         $payload = ['message' => 'Verification code sent.'];
 
@@ -48,14 +48,14 @@ class AuthController extends Controller
     {
         $data = $request->validated();
 
-        if (! $this->otp->verifyCode($data['phone'], self::REGISTER_PURPOSE, $data['code'])) {
+        if (! $this->otpService->verifyCode($data['phone'], self::REGISTER_PURPOSE, $data['code'])) {
             throw ValidationException::withMessages(['code' => 'The verification code is invalid or expired.']);
         }
 
-        $user = $this->auth->registerClient($data['phone'], $data['name'], $data['password']);
+        $user = $this->authService->registerClient($data['phone'], $data['name'], $data['password']);
 
         return response()->json([
-            'token' => $this->auth->issueToken($user),
+            'token' => $this->authService->issueToken($user),
             'user' => new UserResource($user),
         ], 201);
     }
@@ -74,7 +74,7 @@ class AuthController extends Controller
         abort_if($user->phone_verified_at === null, 403, 'Phone number is not verified.');
 
         return response()->json([
-            'token' => $this->auth->issueToken($user),
+            'token' => $this->authService->issueToken($user),
             'user' => new UserResource($user),
         ]);
     }
@@ -89,7 +89,7 @@ class AuthController extends Controller
 
         if (User::where('phone', $data['phone'])->exists()) {
             try {
-                $code = $this->otp->sendCode($data['phone'], self::RESET_PURPOSE);
+                $code = $this->otpService->sendCode($data['phone'], self::RESET_PURPOSE);
             } catch (OtpThrottledException) {
                 // no-op: keep the response identical to the unknown-phone case
             }
@@ -108,7 +108,7 @@ class AuthController extends Controller
     {
         $data = $request->validated();
 
-        if (! $this->otp->verifyCode($data['phone'], self::RESET_PURPOSE, $data['code'])) {
+        if (! $this->otpService->verifyCode($data['phone'], self::RESET_PURPOSE, $data['code'])) {
             throw ValidationException::withMessages(['code' => 'The verification code is invalid or expired.']);
         }
 

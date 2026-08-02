@@ -12,7 +12,8 @@
     { "key": "base_url", "value": "https://home-maintenance.me", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "otp_code", "value": "", "type": "string" },
-    { "key": "reset_code", "value": "", "type": "string" }
+    { "key": "reset_code", "value": "", "type": "string" },
+    { "key": "order_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -231,6 +232,50 @@
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/addresses/1", "host": ["{{base_url}}"], "path": ["api", "addresses", "1"] },
             "description": "PLANNED — delete an address by id."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.data && json.data.id) { pm.collectionVariables.set('order_id', json.data.id); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"operation_id\": \"{{$guid}}\",\n  \"service_category_id\": 1,\n  \"address_id\": 1,\n  \"type\": \"urgent\",\n  \"description\": \"Leaking sink\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"] },
+            "description": "Creates an order and holds the inspection fee in escrow. Requires a funded wallet (top up first). Auto-saves the new id to {{order_id}}. For a scheduled order, use type=scheduled and add scheduled_at (a future ISO datetime).\n\noperation_id is an idempotency token: reuse the SAME value to retry safely (a repeat returns the same order, the fee is held once). {{$guid}} generates a fresh one on each send — pin it to a fixed value to test idempotency."
+          }
+        },
+        {
+          "name": "List My Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"] }
+          }
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}"] }
           }
         }
       ]

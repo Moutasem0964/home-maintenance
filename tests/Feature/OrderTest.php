@@ -8,12 +8,22 @@ use App\Models\ServiceCategory;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\WalletService;
+use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class OrderTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Order creation snapshots commission_rate + inspection_fee from platform settings.
+        $this->seed(AppSettingSeeder::class);
+    }
 
     /** A verified client whose wallet has been funded with the given balance. */
     private function fundedClient(string $balance = '100.00'): User
@@ -23,6 +33,11 @@ class OrderTest extends TestCase
         app(WalletService::class)->topUp($user, $balance, 'seed-'.$user->id);
 
         return $user->refresh();
+    }
+
+    private function opId(): string
+    {
+        return (string) Str::uuid();
     }
 
     // ---------- Authentication ----------
@@ -46,6 +61,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'urgent',
@@ -82,6 +98,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'scheduled',
@@ -97,6 +114,35 @@ class OrderTest extends TestCase
         ]);
     }
 
+    // ---------- Idempotency ----------
+
+    public function test_is_idempotent_on_operation_id(): void
+    {
+        $user = $this->fundedClient('100.00');
+        $category = ServiceCategory::factory()->create();
+        $address = Address::factory()->for($user)->create();
+
+        $payload = [
+            'operation_id' => $this->opId(),
+            'service_category_id' => $category->id,
+            'address_id' => $address->id,
+            'type' => 'urgent',
+        ];
+
+        $first = $this->actingAs($user, 'sanctum')->postJson('/api/orders', $payload)->assertCreated();
+        $second = $this->actingAs($user, 'sanctum')->postJson('/api/orders', $payload)->assertCreated();
+
+        // Same order returned, created exactly once.
+        $this->assertSame($first->json('data.id'), $second->json('data.id'));
+        $this->assertDatabaseCount('orders', 1);
+
+        // The fee is held exactly once, not twice.
+        $wallet = $user->wallet()->firstOrFail();
+        $this->assertSame(50.0, (float) $wallet->available_balance);
+        $this->assertSame(50.0, (float) $wallet->held_balance);
+        $this->assertSame(1, $user->orders()->firstOrFail()->payments()->count());
+    }
+
     // ---------- Money integrity ----------
 
     public function test_insufficient_balance_is_rejected_and_creates_no_order(): void
@@ -106,6 +152,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'urgent',
@@ -128,6 +175,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create(['lat' => 33.5138, 'lng' => 36.2765]);
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'urgent',
@@ -145,6 +193,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'urgent',
@@ -164,6 +213,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'urgent',
@@ -186,7 +236,7 @@ class OrderTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['service_category_id', 'address_id', 'type']);
+            ->assertJsonValidationErrors(['operation_id', 'service_category_id', 'address_id', 'type']);
     }
 
     public function test_rejects_invalid_type(): void
@@ -196,6 +246,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'whenever',
@@ -209,6 +260,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'scheduled',
@@ -222,6 +274,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'scheduled',
@@ -236,6 +289,7 @@ class OrderTest extends TestCase
         $address = Address::factory()->for($user)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $address->id,
             'type' => 'urgent',
@@ -250,6 +304,7 @@ class OrderTest extends TestCase
         $foreignAddress = Address::factory()->for($other)->create();
 
         $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
             'service_category_id' => $category->id,
             'address_id' => $foreignAddress->id,
             'type' => 'urgent',
