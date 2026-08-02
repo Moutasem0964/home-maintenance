@@ -24,6 +24,7 @@ class Order extends Model
 
     protected $fillable = [
         'client_id',
+        'idempotency_key',
         'technician_id',
         'service_category_id',
         'address_id',
@@ -43,7 +44,7 @@ class Order extends Model
     ];
 
     /** closure_code is server-side only — never expose it through the API. */
-    protected $hidden = ['closure_code'];
+    protected $hidden = ['closure_code', 'idempotency_key'];
 
     protected function casts(): array
     {

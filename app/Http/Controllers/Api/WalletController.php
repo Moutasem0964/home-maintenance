@@ -19,12 +19,12 @@ class WalletController extends Controller
         return new WalletResource($user->wallet()->firstOrFail());
     }
 
-    public function topUp(TopUpRequest $request, WalletService $wallets): WalletResource
+    public function topUp(TopUpRequest $request, WalletService $walletService): WalletResource
     {
         /** @var User $user */
         $user = $request->user();
 
-        $wallet = $wallets->topUp(
+        $wallet = $walletService->topUp(
             $user,
             (string) $request->validated('amount'),
             (string) $request->validated('gateway_reference'),

@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
 class EscrowService
 {
     public function __construct(
-        private readonly PlatformService $platform,
+        private readonly PlatformService $platformService,
     ) {}
 
     private function isReleasable(Order $order): bool
@@ -125,7 +125,7 @@ class EscrowService
                 return;
             }
 
-            $platform = $this->platform->account();
+            $platform = $this->platformService->account();
 
             $platformWallet = $platform->wallet()->lockForUpdate()->firstOrFail();
             $payeeWallet = $order->technician->user->wallet()->lockForUpdate()->firstOrFail();

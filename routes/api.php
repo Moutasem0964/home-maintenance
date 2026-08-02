@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,4 +27,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('wallet/top-up', [WalletController::class, 'topUp']);
 
     Route::apiResource('addresses', AddressController::class);
+    Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
 });
