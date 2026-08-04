@@ -16,10 +16,9 @@ an oversight.
 - **Skip zero-value platform ledger entry.** When `commission_amount` is 0,
   `releaseFunds` still writes a 0 platform entry + 0 increment. Harmless but
   noisy. *When:* same branch as above.
-- **`isReleasable` only allows `Completed`.** An admin dispute resolution of
-  `release_to_technician` leaves the order `Resolved`, which this method would
-  silently no-op. *When:* disputes branch — add `Resolved` to the allow-list
-  (with its own test) or have `DisputeService` route the money directly.
+- ~~**`isReleasable` only allows `Completed`.**~~ DONE (feature/disputes):
+  `isReleasable` now allows `Completed` *and* `Resolved` (both gated on
+  `! hasOpenDispute`), so an admin `release_to_technician` resolution settles.
 - **`no_show` and `inspection_only` release paths.** Both pay the technician the
   inspection fee but via their own flows, not the `Completed` path. *When:*
   no-show flow / quote-rejection flow branches, each adding its allow-list arm
@@ -68,12 +67,36 @@ an oversight.
   past the threshold, but there's no admin alert/dashboard for anomalous quotes.
   *When:* admin/dispute dashboard branch.
 
+## Disputes (feature/disputes)
+
+- **Closure review window is one clock.** The review/auto-complete window reuses
+  `closure_code_ttl_minutes` (so code validity == time-to-dispute-or-confirm ==
+  auto-complete deadline, all driven by `closure_expires_at`). If the business ever
+  wants the auto-complete window to differ from code validity, that needs a second
+  timestamp column + setting. *When:* only if product asks; single clock is the default.
+- **Auto-completed orders weaken the closure-code guarantee by design.** A
+  `closure:auto-complete` order was completed without a client-confirmed code, so
+  the `ClosureAutoCompleted` event (not `ClosureVerified`) and null
+  `closure_verified_at` flag it for the fraud/dispute board to weight differently.
+  *When:* admin/dispute dashboard branch.
+- **`warranty_order` resolution arm.** `DisputeResolution::WarrantyOrder` exists
+  but `resolve()` throws "not implemented" for it — it needs to spawn a new
+  (free) order for the same tech and decide what happens to the held money.
+  *When:* warranty branch (pairs with reviews + warranty_until below).
+- **Partial refund is FIFO, not proportional.** `settlePartial` refunds the
+  admin's amount from the held payments oldest-first (each payment fully refunded,
+  fully released, or split once) so there's no cross-payment rounding. If the
+  business wants the refund spread *proportionally* across inspection + repair,
+  revisit. *When:* only if product asks for it — FIFO is the documented default.
+- **No tech counter / escalation flow.** A raised dispute goes straight from
+  `open` to an admin decision; `DisputeStatus::UnderReview`/`Escalated` and any
+  technician rebuttal step aren't wired. *When:* dispute-workflow branch.
+- **Admin resolve is gated by an inline role check.** Like the technician-approve
+  endpoint, `resolve` uses `abort_unless(role === Admin)`; folds into the Filament
+  admin panel + `role:admin` middleware later. *When:* admin-panel branch.
+
 ## Closure & release (feature/closure)
 
-- **Disputes filing.** The release cron already refuses orders with an open
-  dispute (`hasOpenDispute`), but there's no endpoint yet for a client to *raise*
-  one during the 48h window. *When:* disputes branch (also wires `DisputeService`
-  → refund / release-to-tech).
 - **Reviews + warranty.** After completion the client should rate the tech and a
   `warranty_until` should be set from the quote's `warranty_days`. Neither is
   wired. *When:* reviews / warranty branch.

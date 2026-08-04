@@ -9,7 +9,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Raising a dispute freezes the escrow release (one transaction, competing on the order lock). */
+/**
+ * Raising a dispute freezes the escrow release (one transaction, competing on the order lock).
+ *
+ * @property int $order_id
+ * @property DisputeReason $reason
+ * @property DisputeStatus $status
+ * @property DisputeResolution|null $resolution
+ */
 class Dispute extends Model
 {
     use HasFactory;

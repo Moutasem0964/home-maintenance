@@ -17,7 +17,8 @@
     { "key": "technician_id", "value": "", "type": "string" },
     { "key": "offer_id", "value": "", "type": "string" },
     { "key": "quote_id", "value": "", "type": "string" },
-    { "key": "closure_code", "value": "", "type": "string" }
+    { "key": "closure_code", "value": "", "type": "string" },
+    { "key": "dispute_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -494,6 +495,48 @@
             },
             "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/verify", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "verify"] },
             "description": "Assigned technician submits the code to complete the job. Order -> completed and a 48h dispute window opens; held funds release automatically after it (release cron)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Disputes",
+      "item": [
+        {
+          "name": "Raise Dispute (client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.data && json.data.id) { pm.collectionVariables.set('dispute_id', json.data.id); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"reason\": \"fault_returned\",\n  \"description\": \"The tap is leaking again the next day.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/dispute", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "dispute"] },
+            "description": "Client raises a dispute. Valid in two moments: during the closure review window (order still in_progress, tech has requested closure) to catch on-site damage, OR during the 48h held window after completion. Order -> disputed, which freezes the release cron. reason: fault_returned | home_damage | different_part | other. Auto-saves the new id to {{dispute_id}}."
+          }
+        },
+        {
+          "name": "Resolve Dispute (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"resolution\": \"partial_refund\",\n  \"refund_amount\": \"40.00\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/disputes/{{dispute_id}}/resolve", "host": ["{{base_url}}"], "path": ["api", "disputes", "{{dispute_id}}", "resolve"] },
+            "description": "Admin-only. resolution: full_refund | partial_refund | release_to_technician (warranty_order not implemented yet). refund_amount is required for partial_refund and is refunded to the client FIFO across held payments; the remainder is released to the technician (minus commission). Order -> resolved."
           }
         }
       ]

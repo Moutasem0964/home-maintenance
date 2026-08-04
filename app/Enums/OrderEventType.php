@@ -22,6 +22,7 @@ enum OrderEventType: string
     case WaitingForParts = 'waiting_for_parts';
     case ClosureGenerated = 'closure_generated';
     case ClosureVerified = 'closure_verified';
+    case ClosureAutoCompleted = 'closure_auto_completed';
     case Completed = 'completed';
     case Disputed = 'disputed';
     case DisputeResolved = 'dispute_resolved';

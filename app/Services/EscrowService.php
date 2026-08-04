@@ -13,6 +13,7 @@ use App\Models\OrderEvent;
 use App\Models\Payment;
 use App\Models\Wallet;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,8 +35,9 @@ class EscrowService
     private function isReleasable(Order $order): bool
     {
         return match ($order->status) {
-            OrderStatus::Completed => ! $order->hasOpenDispute(),
-            // Other conditions for releasing funds based on order status
+            // Completed = normal settlement after the dispute window.
+            // Resolved  = an admin resolved a dispute in the technician's favour.
+            OrderStatus::Completed, OrderStatus::Resolved => ! $order->hasOpenDispute(),
             default => false,
         };
     }
@@ -274,5 +276,120 @@ class EscrowService
         }
 
         return $released;
+    }
+
+    /**
+     * Full refund: return every held payment on the order to the client (held ->
+     * available). Used by a dispute resolved fully in the client's favour.
+     */
+    public function refundOrder(Order $order, string $operationId): void
+    {
+        DB::transaction(function () use ($order, $operationId) {
+            $order = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $clientWallet = $order->client->wallet()->lockForUpdate()->firstOrFail();
+
+            $payments = $order->payments()->where('status', PaymentStatus::Held)->get();
+            foreach ($payments as $payment) {
+                $this->recordLedgerEntry(
+                    $clientWallet, $payment, $order, TxnType::Refund, BalanceType::Held,
+                    bcmul($payment->amount, '-1', 2),
+                    'Refund released from held for order #'.$order->id, $operationId
+                );
+                $this->recordLedgerEntry(
+                    $clientWallet, $payment, $order, TxnType::Refund, BalanceType::Available,
+                    $payment->amount,
+                    'Refund returned to available for order #'.$order->id, $operationId
+                );
+
+                $clientWallet->decreaseHeldBalance($payment->amount);
+                $clientWallet->increaseAvailableBalance($payment->amount);
+
+                $payment->update(['status' => PaymentStatus::Refunded, 'refunded_at' => now()]);
+            }
+
+            OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::Refunded]);
+        });
+    }
+
+    /**
+     * Partial refund: refund $refundAmount to the client and release the remainder to
+     * the technician (commission charged on the released portion only). The refund is
+     * allocated FIFO across the held payments — each payment is either fully refunded,
+     * fully released, or split once — which avoids proportional-rounding ambiguity.
+     */
+    public function settlePartial(Order $order, string $refundAmount, string $operationId): void
+    {
+        DB::transaction(function () use ($order, $refundAmount, $operationId) {
+            $order = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            $platformWallet = $this->platformService->account()->wallet()->lockForUpdate()->firstOrFail();
+            $payeeWallet = $order->technician->user->wallet()->lockForUpdate()->firstOrFail();
+            $clientWallet = $order->client->wallet()->lockForUpdate()->firstOrFail();
+
+            /** @var Collection<int, Payment> $payments */
+            $payments = $order->payments()->where('status', PaymentStatus::Held)->orderBy('id')->get();
+            $totalHeld = $payments->reduce(fn (string $carry, Payment $p): string => bcadd($carry, $p->amount, 2), '0.00');
+
+            if (bccomp($refundAmount, '0', 2) <= 0 || bccomp($refundAmount, $totalHeld, 2) >= 0) {
+                throw new \DomainException("Partial refund {$refundAmount} must be between 0 and the held total {$totalHeld}.");
+            }
+
+            $remainingRefund = $refundAmount; // still to refund, consumed FIFO
+            foreach ($payments as $payment) {
+                $refundShare = bccomp($remainingRefund, $payment->amount, 2) >= 0 ? $payment->amount : $remainingRefund;
+                $releaseShare = bcsub($payment->amount, $refundShare, 2);
+                $remainingRefund = bcsub($remainingRefund, $refundShare, 2);
+
+                if (bccomp($refundShare, '0', 2) > 0) {
+                    $this->recordLedgerEntry(
+                        $clientWallet, $payment, $order, TxnType::Refund, BalanceType::Held,
+                        bcmul($refundShare, '-1', 2), 'Partial refund from held for order #'.$order->id, $operationId
+                    );
+                    $this->recordLedgerEntry(
+                        $clientWallet, $payment, $order, TxnType::Refund, BalanceType::Available,
+                        $refundShare, 'Partial refund to available for order #'.$order->id, $operationId
+                    );
+                    $clientWallet->decreaseHeldBalance($refundShare);
+                    $clientWallet->increaseAvailableBalance($refundShare);
+                }
+
+                if (bccomp($releaseShare, '0', 2) > 0) {
+                    $commission = bcmul($releaseShare, $order->commission_rate, 2);
+                    $technicianCut = bcsub($releaseShare, $commission, 2);
+
+                    $this->recordLedgerEntry(
+                        $clientWallet, $payment, $order, TxnType::Release, BalanceType::Held,
+                        bcmul($releaseShare, '-1', 2), 'Release remainder from held for order #'.$order->id, $operationId
+                    );
+                    $this->recordLedgerEntry(
+                        $payeeWallet, $payment, $order, TxnType::Release, BalanceType::Available,
+                        $technicianCut, 'Funds released to payee for order #'.$order->id, $operationId
+                    );
+                    $this->recordLedgerEntry(
+                        $platformWallet, $payment, $order, TxnType::Release, BalanceType::Available,
+                        $commission, 'Commission received for order #'.$order->id, $operationId
+                    );
+                    $clientWallet->decreaseHeldBalance($releaseShare);
+                    $payeeWallet->increaseAvailableBalance($technicianCut);
+                    $platformWallet->increaseAvailableBalance($commission);
+                }
+
+                $status = match (true) {
+                    bccomp($releaseShare, '0', 2) === 0 => PaymentStatus::Refunded,
+                    bccomp($refundShare, '0', 2) === 0 => PaymentStatus::Released,
+                    default => PaymentStatus::PartiallyRefunded,
+                };
+
+                $payment->update([
+                    'status' => $status,
+                    'payee_id' => bccomp($releaseShare, '0', 2) > 0 ? $order->technician->user->id : $payment->payee_id,
+                    'refunded_at' => bccomp($refundShare, '0', 2) > 0 ? now() : $payment->refunded_at,
+                    'released_at' => bccomp($releaseShare, '0', 2) > 0 ? now() : $payment->released_at,
+                ]);
+            }
+
+            OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::FundsReleased]);
+            OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::Refunded]);
+        });
     }
 }
