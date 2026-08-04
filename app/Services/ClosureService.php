@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\DB;
 class ClosureService
 {
     /**
-     * Client generates a fresh closure code (returned ONLY to the client). The
-     * technician obtains it from the client in person and submits it to close the
-     * job — proving presence + client consent. The code is stored encrypted and is
-     * never sent to the technician by the server (SRS note 4).
+     * The assigned technician requests closure when the work is done. The server
+     * mints a fresh code and stores it encrypted, but (per SRS note 4) never returns
+     * it to the technician — the CLIENT reads it back via activeCodeFor() and shares
+     * it in person, which is what proves presence + client consent.
      */
-    public function generate(Order $order): string
+    public function generate(Order $order): void
     {
         $code = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
@@ -33,8 +33,21 @@ class ClosureService
 
             OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::ClosureGenerated]);
         });
+    }
 
-        return $code;
+    /** The active closure code for the client to read to the technician, or null if none/expired. */
+    public function activeCodeFor(Order $order): ?string
+    {
+        $fresh = $order->fresh();
+
+        if ($fresh === null
+            || $fresh->closure_code === null
+            || $fresh->closure_expires_at === null
+            || $fresh->closure_expires_at->isPast()) {
+            return null;
+        }
+
+        return $fresh->closure_code;
     }
 
     /**
@@ -89,8 +102,8 @@ class ClosureService
 
         throw match ($outcome) {
             'not_in_progress' => new \DomainException('This order is not awaiting closure.'),
-            'no_code' => new ClosureCodeException('No active closure code — ask the client to generate one.'),
-            'locked' => new ClosureCodeException('Too many attempts — ask the client to generate a new code.'),
+            'no_code' => new ClosureCodeException('No active closure code — request closure again to mint a fresh one.'),
+            'locked' => new ClosureCodeException('Too many attempts — request closure again for a new code.'),
             default => new ClosureCodeException('The closure code is incorrect.'),
         };
     }

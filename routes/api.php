@@ -40,7 +40,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('quotes/{quote}/approve', [QuoteController::class, 'approve']);
     Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject']);
 
-    Route::post('orders/{order}/closure/generate', [ClosureController::class, 'generate']);
+    Route::post('orders/{order}/closure/request', [ClosureController::class, 'requestCode']);
+    Route::get('orders/{order}/closure/code', [ClosureController::class, 'code']);
     Route::post('orders/{order}/closure/verify', [ClosureController::class, 'verify']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);

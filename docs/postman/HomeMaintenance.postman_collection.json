@@ -456,7 +456,16 @@
       "name": "Closure",
       "item": [
         {
-          "name": "Generate Closure Code (client)",
+          "name": "Request Closure (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/request", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "request"] },
+            "description": "Assigned technician signals the work is done. The server mints a code (valid 10 min) for the client. The code is NOT returned to the technician — they receive it verbally from the client (SRS note 4)."
+          }
+        },
+        {
+          "name": "Get Closure Code (client)",
           "event": [
             {
               "listen": "test",
@@ -467,10 +476,10 @@
             }
           ],
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/generate", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "generate"] },
-            "description": "Client generates the closure code (valid 10 min) and reads it to the technician. Auto-saves it to {{closure_code}} for convenience; in reality the technician gets it verbally and the server never sends it to their device."
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/code", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "code"] },
+            "description": "Client reads their active closure code and shares it with the technician in person. Auto-saves it to {{closure_code}} for convenience. 404 if the technician hasn't requested closure yet."
           }
         },
         {
