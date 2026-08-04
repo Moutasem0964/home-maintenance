@@ -8,9 +8,11 @@ use App\Http\Controllers\Api\ClosureController;
 use App\Http\Controllers\Api\DisputeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\TechnicianOfferController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -47,6 +49,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('orders/{order}/dispute', [DisputeController::class, 'store']);
     Route::post('disputes/{dispute}/resolve', [DisputeController::class, 'resolve']);
+
+    Route::post('orders/{order}/review', [ReviewController::class, 'store']);
+    Route::post('orders/{order}/warranty-claim', [WarrantyController::class, 'claim']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);

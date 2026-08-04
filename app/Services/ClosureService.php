@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
+use App\Enums\QuoteStatus;
 use App\Exceptions\ClosureCodeException;
 use App\Models\AppSetting;
 use App\Models\Order;
 use App\Models\OrderEvent;
+use App\Models\Quote;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -89,6 +91,7 @@ class ClosureService
             $locked->closure_code = null;
             $locked->closure_expires_at = null;
             $locked->dispute_deadline_at = now()->addHours((int) AppSetting::get('dispute_window_hours', 48));
+            $this->applyWarranty($locked);
             $locked->save();
 
             OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::ClosureVerified]);
@@ -143,6 +146,7 @@ class ClosureService
                 $locked->closure_code = null;
                 $locked->closure_expires_at = null;
                 $locked->dispute_deadline_at = now()->addHours((int) AppSetting::get('dispute_window_hours', 48));
+                $this->applyWarranty($locked);
                 $locked->save();
 
                 OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::ClosureAutoCompleted]);
@@ -157,5 +161,21 @@ class ClosureService
         }
 
         return $completed;
+    }
+
+    /**
+     * Stamp the order's warranty on completion from the approved quote's warranty_days.
+     * Sets the attribute only (the caller saves inside its own transaction); a quote
+     * with 0 warranty days, or no approved quote, leaves warranty_until untouched.
+     */
+    private function applyWarranty(Order $locked): void
+    {
+        /** @var Quote|null $approved */
+        $approved = $locked->quotes()->where('status', QuoteStatus::Approved)->first();
+        $days = $approved !== null ? (int) $approved->warranty_days : 0;
+
+        if ($days > 0) {
+            $locked->warranty_until = now()->addDays($days);
+        }
     }
 }

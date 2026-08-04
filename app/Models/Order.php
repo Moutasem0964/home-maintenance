@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $closure_expires_at
  * @property int $closure_attempts
  * @property Carbon|null $dispute_deadline_at
+ * @property Carbon|null $warranty_until
  */
 class Order extends Model
 {

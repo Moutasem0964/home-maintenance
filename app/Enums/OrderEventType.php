@@ -33,4 +33,5 @@ enum OrderEventType: string
     case Expired = 'expired';
     case NoShow = 'no_show';
     case TechnicianWithdrew = 'technician_withdrew'; // decline-after-accept → re-dispatch
+    case WarrantyClaimed = 'warranty_claimed';       // client files a warranty visit → child order
 }

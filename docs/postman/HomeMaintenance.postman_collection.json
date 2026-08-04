@@ -18,7 +18,8 @@
     { "key": "offer_id", "value": "", "type": "string" },
     { "key": "quote_id", "value": "", "type": "string" },
     { "key": "closure_code", "value": "", "type": "string" },
-    { "key": "dispute_id", "value": "", "type": "string" }
+    { "key": "dispute_id", "value": "", "type": "string" },
+    { "key": "warranty_order_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -537,6 +538,48 @@
             },
             "url": { "raw": "{{base_url}}/api/disputes/{{dispute_id}}/resolve", "host": ["{{base_url}}"], "path": ["api", "disputes", "{{dispute_id}}", "resolve"] },
             "description": "Admin-only. resolution: full_refund | partial_refund | release_to_technician (warranty_order not implemented yet). refund_amount is required for partial_refund and is refunded to the client FIFO across held payments; the remainder is released to the technician (minus commission). Order -> resolved."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews & Warranty",
+      "item": [
+        {
+          "name": "Leave Review (client)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"cleanliness\": 5,\n  \"quality\": 4,\n  \"price_rating\": 5,\n  \"comment\": \"On time and tidy.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/review", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "review"] },
+            "description": "Client rates a completed (or resolved) order once. cleanliness/quality/price_rating are 1-5. A low price_rating (<=2) sets price_anomaly_flag server-side. 409 if not completed or already reviewed."
+          }
+        },
+        {
+          "name": "Claim Warranty (client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.data && json.data.id) { pm.collectionVariables.set('warranty_order_id', json.data.id); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"The same fault came back.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/warranty-claim", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "warranty-claim"] },
+            "description": "Client claims the warranty within warranty_until. Spawns a same-technician, zero-labor warranty order (kind=warranty, parent_order_id set, status in_progress). 409 if the warranty expired, order isn't completed, or a warranty visit already exists. Saves the new order id to {{warranty_order_id}}."
           }
         }
       ]
