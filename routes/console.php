@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Move timed-out dispatch offers on to the next technician (~every minute via the scheduler container).
 Schedule::command('dispatch:expire-offers')->everyMinute();
+
+// Expire unanswered quotes past their deadline (24h window, so hourly is plenty).
+Schedule::command('quotes:expire')->hourly();

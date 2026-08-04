@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\TechnicianOfferController;
 use App\Http\Controllers\Api\WalletController;
@@ -32,6 +33,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('addresses', AddressController::class);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
+
+    Route::get('orders/{order}/quotes', [QuoteController::class, 'index']);
+    Route::post('orders/{order}/quotes', [QuoteController::class, 'store']);
+    Route::post('quotes/{quote}/approve', [QuoteController::class, 'approve']);
+    Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);

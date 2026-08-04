@@ -53,6 +53,21 @@ an oversight.
   exists but no endpoint drops an accepted job and re-dispatches. *When:*
   order-lifecycle / cancellation branch.
 
+## Quotes (feature/quotes)
+
+- **Add-on quotes.** `QuoteType::Addon` exists (extra fault found mid-job) but
+  only `initial` quotes are wired. Needs its own send/approve path that tops up
+  the held repair amount. *When:* mid-job / addon branch.
+- **inspection_only money is status-only.** Reject/expire move the order to
+  `inspection_only` but do not yet release the inspection fee to the technician —
+  that's the existing escrow `no_show / inspection_only release paths` TODO.
+  *When:* escrow inspection-release branch.
+- **Evidence photos + `waiting_for_parts`.** The `evidences` table and the
+  `WaitingForParts` order state aren't used yet. *When:* work/closure branch.
+- **FR-A2 anomaly is enforced but not surfaced.** A justification is required
+  past the threshold, but there's no admin alert/dashboard for anomalous quotes.
+  *When:* admin/dispute dashboard branch.
+
 ## Cross-cutting hardening
 
 - **`Model::preventSilentlyDiscardingAttributes()`** in `AppServiceProvider@boot`
@@ -83,7 +98,7 @@ an oversight.
   *When:* standalone chore PR (or incrementally per branch as relations get used).
 - **Model @property docblocks repo-wide.** Enum/decimal columns need
   `@property` lines so Larastan sees runtime types (done for User, Technician,
-  AppSetting, Order, Wallet, Payment, DispatchOffer; do the rest as used).
+  AppSetting, Order, Wallet, Payment, DispatchOffer, Quote; do the rest as used).
 
 ## Technician onboarding (feature/technician-onboarding)
 

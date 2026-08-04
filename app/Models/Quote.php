@@ -8,8 +8,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
-/** Technician→client price offer, sent after diagnosis. Expires automatically. */
+/**
+ * Technician→client price offer, sent after diagnosis. Expires automatically.
+ *
+ * @property QuoteStatus $status
+ * @property QuoteType $type
+ * @property Carbon $expires_at
+ */
 class Quote extends Model
 {
     use HasFactory;
