@@ -16,7 +16,8 @@
     { "key": "order_id", "value": "", "type": "string" },
     { "key": "technician_id", "value": "", "type": "string" },
     { "key": "offer_id", "value": "", "type": "string" },
-    { "key": "quote_id", "value": "", "type": "string" }
+    { "key": "quote_id", "value": "", "type": "string" },
+    { "key": "closure_code", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -447,6 +448,43 @@
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/quotes/{{quote_id}}/reject", "host": ["{{base_url}}"], "path": ["api", "quotes", "{{quote_id}}", "reject"] },
             "description": "Client rejects -> order closes as inspection_only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Closure",
+      "item": [
+        {
+          "name": "Generate Closure Code (client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.code) { pm.collectionVariables.set('closure_code', json.code); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/generate", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "generate"] },
+            "description": "Client generates the closure code (valid 10 min) and reads it to the technician. Auto-saves it to {{closure_code}} for convenience; in reality the technician gets it verbally and the server never sends it to their device."
+          }
+        },
+        {
+          "name": "Verify Closure (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"code\": \"{{closure_code}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/verify", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "verify"] },
+            "description": "Assigned technician submits the code to complete the job. Order -> completed and a 48h dispute window opens; held funds release automatically after it (release cron)."
           }
         }
       ]
