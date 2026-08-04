@@ -15,7 +15,8 @@
     { "key": "reset_code", "value": "", "type": "string" },
     { "key": "order_id", "value": "", "type": "string" },
     { "key": "technician_id", "value": "", "type": "string" },
-    { "key": "offer_id", "value": "", "type": "string" }
+    { "key": "offer_id", "value": "", "type": "string" },
+    { "key": "quote_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -391,6 +392,61 @@
             },
             "url": { "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/decline", "host": ["{{base_url}}"], "path": ["api", "technician", "offers", "{{offer_id}}", "decline"] },
             "description": "Decline and re-offer the order to the next nearest technician."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Quotes",
+      "item": [
+        {
+          "name": "Send Quote (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"labor_cost\": \"80.00\",\n  \"warranty_days\": 30,\n  \"justification\": null,\n  \"parts\": [\n    { \"name\": \"Valve\", \"price\": \"20.00\", \"classification\": \"standard\", \"image_url\": \"https://example.com/part.jpg\" }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/quotes", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "quotes"] },
+            "description": "Assigned technician sends the initial quote (labor + parts). Order must be 'accepted'. A justification is required when the total exceeds the category guide price x the anomaly multiplier."
+          }
+        },
+        {
+          "name": "List Quotes",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.data && json.data[0]) { pm.collectionVariables.set('quote_id', json.data[0].id); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/quotes", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "quotes"] },
+            "description": "Client or assigned technician lists the order's quotes. Auto-saves the newest quote id to {{quote_id}}."
+          }
+        },
+        {
+          "name": "Approve Quote (client)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/quotes/{{quote_id}}/approve", "host": ["{{base_url}}"], "path": ["api", "quotes", "{{quote_id}}", "approve"] },
+            "description": "Client approves -> holds the repair fee in escrow and moves the order to in_progress. 422 if the wallet can't cover it."
+          }
+        },
+        {
+          "name": "Reject Quote (client)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/quotes/{{quote_id}}/reject", "host": ["{{base_url}}"], "path": ["api", "quotes", "{{quote_id}}", "reject"] },
+            "description": "Client rejects -> order closes as inspection_only."
           }
         }
       ]
