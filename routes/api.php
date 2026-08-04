@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ClosureController;
+use App\Http\Controllers\Api\DisputeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\TechnicianController;
@@ -43,6 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{order}/closure/request', [ClosureController::class, 'requestCode']);
     Route::get('orders/{order}/closure/code', [ClosureController::class, 'code']);
     Route::post('orders/{order}/closure/verify', [ClosureController::class, 'verify']);
+
+    Route::post('orders/{order}/dispute', [DisputeController::class, 'store']);
+    Route::post('disputes/{dispute}/resolve', [DisputeController::class, 'resolve']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);

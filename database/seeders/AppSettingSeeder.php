@@ -20,7 +20,7 @@ class AppSettingSeeder extends Seeder
             ['key' => 'quote_expiry_hours',       'value' => '24',   'data_type' => 'int',     'description' => 'Hours before an unanswered quote expires'],
             ['key' => 'offer_timeout_seconds',    'value' => '90',   'data_type' => 'int',     'description' => 'Seconds a technician has to answer a dispatch offer'],
             ['key' => 'no_show_wait_minutes',     'value' => '15',   'data_type' => 'int',     'description' => 'Minutes the technician waits before no-show applies'],
-            ['key' => 'closure_code_ttl_minutes', 'value' => '10',   'data_type' => 'int',     'description' => 'Closure code validity window'],
+            ['key' => 'closure_code_ttl_minutes', 'value' => '10',   'data_type' => 'int',     'description' => 'Closure review window: minutes the client has to use the code or dispute before the order auto-completes'],
             ['key' => 'closure_max_attempts',     'value' => '5',    'data_type' => 'int',     'description' => 'Max failed closure-code attempts before lock'],
             ['key' => 'min_withdrawal_amount',    'value' => '100',  'data_type' => 'decimal', 'description' => 'Minimum technician withdrawal'],
             ['key' => 'price_anomaly_multiplier', 'value' => '2.0',  'data_type' => 'decimal', 'description' => 'FR-A2: alert when quote exceeds guide price by this factor'],

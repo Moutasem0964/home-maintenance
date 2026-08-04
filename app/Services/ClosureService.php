@@ -8,6 +8,7 @@ use App\Exceptions\ClosureCodeException;
 use App\Models\AppSetting;
 use App\Models\Order;
 use App\Models\OrderEvent;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class ClosureService
@@ -106,5 +107,55 @@ class ClosureService
             'locked' => new ClosureCodeException('Too many attempts — request closure again for a new code.'),
             default => new ClosureCodeException('The closure code is incorrect.'),
         };
+    }
+
+    /**
+     * Anti-deadlock: if the technician requested closure and the client neither used
+     * the code nor disputed before the review window (closure_expires_at) elapsed,
+     * auto-complete the order so the technician isn't held hostage. The client is
+     * still fully protected by the 48h held dispute window that this opens. Because
+     * no code was confirmed, we log a distinct ClosureAutoCompleted event and leave
+     * closure_verified_at null — the dispute board can tell auto from code-confirmed.
+     */
+    public function autoCompleteStaleClosures(): int
+    {
+        $due = Order::query()
+            ->where('status', OrderStatus::InProgress)
+            ->whereNotNull('closure_expires_at')
+            ->where('closure_expires_at', '<', now())
+            ->whereDoesntHave('dispute', fn (Builder $query) => $query->whereNull('resolved_at'))
+            ->lazyById(200);
+
+        $completed = 0;
+        foreach ($due as $order) {
+            $didComplete = DB::transaction(function () use ($order): bool {
+                /** @var Order $locked */
+                $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+                // Re-check under the lock: a verify or a dispute may have won the race.
+                if ($locked->status !== OrderStatus::InProgress
+                    || $locked->closure_expires_at === null
+                    || $locked->closure_expires_at->isFuture()) {
+                    return false;
+                }
+
+                $locked->status = OrderStatus::Completed;
+                $locked->closure_code = null;
+                $locked->closure_expires_at = null;
+                $locked->dispute_deadline_at = now()->addHours((int) AppSetting::get('dispute_window_hours', 48));
+                $locked->save();
+
+                OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::ClosureAutoCompleted]);
+                OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::Completed]);
+
+                return true;
+            });
+
+            if ($didComplete) {
+                $completed++;
+            }
+        }
+
+        return $completed;
     }
 }

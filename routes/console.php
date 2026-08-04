@@ -16,3 +16,7 @@ Schedule::command('quotes:expire')->hourly();
 
 // Release escrow holds once a completed order's dispute window has closed.
 Schedule::command('orders:release-holds')->hourly();
+
+// Auto-complete orders whose closure review window elapsed with no client action
+// (client neither used the code nor disputed) — frees the technician.
+Schedule::command('closure:auto-complete')->everyMinute();
