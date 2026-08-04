@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  *
  * @property QuoteStatus $status
  * @property QuoteType $type
+ * @property int $warranty_days
  * @property Carbon $expires_at
  */
 class Quote extends Model

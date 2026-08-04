@@ -95,11 +95,32 @@ an oversight.
   endpoint, `resolve` uses `abort_unless(role === Admin)`; folds into the Filament
   admin panel + `role:admin` middleware later. *When:* admin-panel branch.
 
+## Reviews & warranty (feature/reviews-warranty)
+
+- ~~**Reviews + warranty.**~~ DONE: client reviews a completed/resolved order once
+  (`POST /orders/{id}/review`), `warranty_until` is stamped at completion from the
+  approved quote's `warranty_days`, and the client can claim the warranty
+  (`POST /orders/{id}/warranty-claim`) to spawn a same-tech zero-labor child order.
+- **`price_anomaly_flag` is derived from a low price rating** (`price_rating <= 2`),
+  not from the quote's guide-price anomaly computed in the quotes slice. If the
+  board wants it tied to the *quote* anomaly instead, thread that through. *When:*
+  admin/dispute dashboard branch.
+- **One warranty visit per order.** `claim` blocks a second warranty child. If a
+  warranty fix itself fails and needs another visit, that's not handled. *When:*
+  only if it comes up in practice.
+- **Warranty order has no lifecycle beyond completion.** The spawned child starts
+  `in_progress` with the same tech and completes via the normal closure flow, but
+  there's no reminder/scheduling for it and its own completion doesn't re-stamp a
+  fresh warranty (no quote → 0 days). *When:* scheduling branch, if needed.
+- **`warranty_order` dispute resolution is now buildable.** `DisputeResolution::WarrantyOrder`
+  can reuse `WarrantyService::claim` to spawn the visit instead of moving money.
+  *When:* wire it into `DisputeService::resolve` (currently throws "not implemented").
+- **Reviews feed `technicians.rating_avg`.** The Review model comment notes a
+  background job to average ratings onto the technician; not wired. *When:*
+  technician-profile / ratings branch.
+
 ## Closure & release (feature/closure)
 
-- **Reviews + warranty.** After completion the client should rate the tech and a
-  `warranty_until` should be set from the quote's `warranty_days`. Neither is
-  wired. *When:* reviews / warranty branch.
 - **Cron churn on settled orders.** `releaseSettledOrders` filters on
   `whereHas(payments, held)` so released orders are skipped, but a fully-settled
   completed order still matches the status+deadline predicate each run. A settled
