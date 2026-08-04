@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderEvent;
 use App\Models\Payment;
 use App\Models\Wallet;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -249,5 +250,29 @@ class EscrowService
                 'event_type' => OrderEventType::Refunded,
             ]);
         });
+    }
+
+    /**
+     * Release funds for every completed order whose dispute window has closed with
+     * no open dispute. releaseFunds re-checks releasability under a lock, so this is
+     * safe to run repeatedly; the held-payment filter keeps already-settled orders out.
+     */
+    public function releaseSettledOrders(): int
+    {
+        $due = Order::query()
+            ->where('status', OrderStatus::Completed)
+            ->whereNotNull('dispute_deadline_at')
+            ->where('dispute_deadline_at', '<', now())
+            ->whereDoesntHave('dispute', fn (Builder $query) => $query->whereNull('resolved_at'))
+            ->whereHas('payments', fn (Builder $query) => $query->where('status', PaymentStatus::Held))
+            ->lazyById(200);
+
+        $released = 0;
+        foreach ($due as $order) {
+            $this->releaseFunds($order, "release:order:{$order->id}");
+            $released++;
+        }
+
+        return $released;
     }
 }

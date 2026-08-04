@@ -68,6 +68,20 @@ an oversight.
   past the threshold, but there's no admin alert/dashboard for anomalous quotes.
   *When:* admin/dispute dashboard branch.
 
+## Closure & release (feature/closure)
+
+- **Disputes filing.** The release cron already refuses orders with an open
+  dispute (`hasOpenDispute`), but there's no endpoint yet for a client to *raise*
+  one during the 48h window. *When:* disputes branch (also wires `DisputeService`
+  → refund / release-to-tech).
+- **Reviews + warranty.** After completion the client should rate the tech and a
+  `warranty_until` should be set from the quote's `warranty_days`. Neither is
+  wired. *When:* reviews / warranty branch.
+- **Cron churn on settled orders.** `releaseSettledOrders` filters on
+  `whereHas(payments, held)` so released orders are skipped, but a fully-settled
+  completed order still matches the status+deadline predicate each run. A settled
+  marker would trim it. *When:* same as the existing escrow-cron churn item.
+
 ## Cross-cutting hardening
 
 - **`Model::preventSilentlyDiscardingAttributes()`** in `AppServiceProvider@boot`

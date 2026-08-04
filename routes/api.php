@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ClosureController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\TechnicianController;
@@ -38,6 +39,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{order}/quotes', [QuoteController::class, 'store']);
     Route::post('quotes/{quote}/approve', [QuoteController::class, 'approve']);
     Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject']);
+
+    Route::post('orders/{order}/closure/generate', [ClosureController::class, 'generate']);
+    Route::post('orders/{order}/closure/verify', [ClosureController::class, 'verify']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);

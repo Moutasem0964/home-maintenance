@@ -11,12 +11,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * @property OrderStatus $status
  * @property numeric-string $commission_rate
  * @property numeric-string $commission_amount
  * @property numeric-string $inspection_fee
+ * @property string|null $closure_code
+ * @property Carbon|null $closure_expires_at
+ * @property int $closure_attempts
+ * @property Carbon|null $dispute_deadline_at
  */
 class Order extends Model
 {
