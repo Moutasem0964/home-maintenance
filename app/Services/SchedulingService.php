@@ -55,6 +55,15 @@ class SchedulingService
         return $appointment;
     }
 
+    /** Cancel every live appointment on an order (freeing the slot) — used on cancel / withdraw. */
+    public function cancelFor(Order $order): void
+    {
+        Appointment::query()
+            ->where('order_id', $order->id)
+            ->whereIn('status', [AppointmentStatus::Pending, AppointmentStatus::Confirmed, AppointmentStatus::Activated])
+            ->update(['status' => AppointmentStatus::Canceled]);
+    }
+
     /** True if the technician has a live (confirmed/activated) appointment overlapping [$start, $end). */
     public function hasConflict(int $technicianId, Carbon $start, Carbon $end): bool
     {

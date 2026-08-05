@@ -37,7 +37,8 @@ class EscrowService
         return match ($order->status) {
             // Completed = normal settlement after the dispute window.
             // Resolved  = an admin resolved a dispute in the technician's favour.
-            OrderStatus::Completed, OrderStatus::Resolved => ! $order->hasOpenDispute(),
+            // NoShow    = client didn't show; the inspection fee goes to the technician.
+            OrderStatus::Completed, OrderStatus::Resolved, OrderStatus::NoShow => ! $order->hasOpenDispute(),
             default => false,
         };
     }

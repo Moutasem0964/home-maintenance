@@ -583,6 +583,47 @@
           }
         }
       ]
+    },
+    {
+      "name": "Cancellation & No-show",
+      "item": [
+        {
+          "name": "Cancel Order (client)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/cancel", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "cancel"] },
+            "description": "Client cancels. Pending -> full inspection-fee refund. Accepted/Scheduled -> late cancel: the tech keeps cancel_fee_share (30%), the rest is refunded and the appointment is freed. 409 once the order is in_progress or beyond."
+          }
+        },
+        {
+          "name": "Withdraw (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/withdraw", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "withdraw"] },
+            "description": "Assigned tech drops an accepted/scheduled job. Frees the slot, returns the order to Pending and re-dispatches to the next technician (inspection fee stays held). 409 if the job is already in progress."
+          }
+        },
+        {
+          "name": "Report Client No-show (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/client", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "no-show", "client"] },
+            "description": "Assigned tech reports the client was absent on-site. Order -> no_show; the inspection fee is released to the tech. Only valid while the order is accepted (tech on-site)."
+          }
+        },
+        {
+          "name": "Report Technician No-show (client)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/technician", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "no-show", "technician"] },
+            "description": "Client reports the technician never arrived. Order -> no_show; the inspection fee is refunded in full to the client."
+          }
+        }
+      ]
     }
   ]
 }
