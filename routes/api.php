@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CancellationController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ClosureController;
 use App\Http\Controllers\Api\DisputeController;
@@ -52,6 +53,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('orders/{order}/review', [ReviewController::class, 'store']);
     Route::post('orders/{order}/warranty-claim', [WarrantyController::class, 'claim']);
+
+    Route::post('orders/{order}/cancel', [CancellationController::class, 'cancel']);
+    Route::post('orders/{order}/withdraw', [CancellationController::class, 'withdraw']);
+    Route::post('orders/{order}/no-show/client', [CancellationController::class, 'clientNoShow']);
+    Route::post('orders/{order}/no-show/technician', [CancellationController::class, 'technicianNoShow']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);

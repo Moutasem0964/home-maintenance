@@ -19,10 +19,13 @@ an oversight.
 - ~~**`isReleasable` only allows `Completed`.**~~ DONE (feature/disputes):
   `isReleasable` now allows `Completed` *and* `Resolved` (both gated on
   `! hasOpenDispute`), so an admin `release_to_technician` resolution settles.
-- **`no_show` and `inspection_only` release paths.** Both pay the technician the
-  inspection fee but via their own flows, not the `Completed` path. *When:*
-  no-show flow / quote-rejection flow branches, each adding its allow-list arm
-  and test.
+- **`no_show` release path — DONE; `inspection_only` still pending.** `NoShow` is
+  now in the `isReleasable` allow-list, so client-no-show releases the fee to the
+  tech (feature/cancellation-noshow). `inspection_only` (quote rejected/expired)
+  still moves status without releasing the inspection fee. *When:* inspection-release
+  branch. NOTE: cancel-fee and no-show payouts reuse `settlePartial`/`releaseFunds`,
+  so they inherit the (currently applied) inspection commission; when the "inspection
+  carries no commission" fix lands, these inherit it automatically.
 - **Multi-payment release test.** Current release test has one held payment.
   Add a test with inspection + repair held together to prove the loop pays the
   sum minus commission. *When:* after order-creation exists to produce two holds.
@@ -45,8 +48,8 @@ an oversight.
   `SchedulingService::book` (on accept of a scheduled order → confirmed appointment,
   order `Scheduled`), `activateDue` + `remindUpcoming` crons, and scheduled dispatch
   offers only to time-conflict-free technicians. Still deferred within this area:
-  (a) **appointment cancellation** — `SchedulingService::cancel` to free the slot +
-  refund the inspection hold, part of the broader cancellation slice; (b) the
+  (a) ~~appointment cancellation~~ DONE — `SchedulingService::cancelFor` frees the
+  slot on client-cancel / technician-withdraw (feature/cancellation-noshow); (b) the
   **pending→confirmed handshake** — appointments are created `Confirmed` directly on
   accept (the `Pending` state is reserved for a future explicit client-confirm step);
   (c) **repair/followup appointments** — only the first `inspection` visit is booked;
@@ -55,9 +58,9 @@ an oversight.
   orders by `(lat-x)^2 + (lng-y)^2` (portable, no DB math funcs). Fine at city
   scale; swap for haversine + the bounding-box prefilter (SRS note 13) when the
   tech pool grows. *When:* performance/scale pass.
-- **Technician withdraw-after-accept.** `OrderEventType::TechnicianWithdrew`
-  exists but no endpoint drops an accepted job and re-dispatches. *When:*
-  order-lifecycle / cancellation branch.
+- ~~**Technician withdraw-after-accept.**~~ DONE (feature/cancellation-noshow):
+  `POST /orders/{id}/withdraw` frees the slot, returns the order to Pending and
+  re-dispatches. No technician penalty applied yet (probation/rating hit) — deferred.
 
 ## Quotes (feature/quotes)
 
