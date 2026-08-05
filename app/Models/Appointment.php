@@ -7,11 +7,20 @@ use App\Enums\AppointmentType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * One row per booked visit (inspection / repair / followup).
  * UNIQUE(technician_id, starts_at) is the DB-level double-booking guard.
  * A technician's appointments ARE his calendar — no separate availability table.
+ *
+ * @property int $order_id
+ * @property int $technician_id
+ * @property AppointmentType $type
+ * @property AppointmentStatus $status
+ * @property Carbon $starts_at
+ * @property Carbon $ends_at
+ * @property Carbon|null $reminder_sent_at
  */
 class Appointment extends Model
 {

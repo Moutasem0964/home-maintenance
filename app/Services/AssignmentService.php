@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\AppointmentStatus;
 use App\Enums\DispatchOfferStatus;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Enums\TechnicianStatus;
 use App\Exceptions\OfferUnavailableException;
 use App\Models\AppSetting;
@@ -12,10 +14,15 @@ use App\Models\DispatchOffer;
 use App\Models\Order;
 use App\Models\OrderEvent;
 use App\Models\Technician;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class AssignmentService
 {
+    public function __construct(
+        private readonly SchedulingService $schedulingService,
+    ) {}
+
     /**
      * Offer a pending order to the next best not-yet-offered technician. Returns
      * the created offer, or null when nobody qualifies (the order stays pending
@@ -46,8 +53,16 @@ class AssignmentService
         return $offer;
     }
 
-    /** Nearest active+available technician who serves the category and hasn't been offered this order yet. */
+    /** Pick the next technician to offer, by the rule appropriate to the order type. */
     private function nextQualifiedTechnician(Order $order): ?Technician
+    {
+        return $order->type === OrderType::Scheduled
+            ? $this->nextForScheduled($order)
+            : $this->nextForUrgent($order);
+    }
+
+    /** Nearest active+available technician who serves the category and hasn't been offered this order yet. */
+    private function nextForUrgent(Order $order): ?Technician
     {
         /** @var Technician|null $technician */
         $technician = Technician::query()
@@ -61,6 +76,35 @@ class AssignmentService
                 '(current_lat - ?) * (current_lat - ?) + (current_lng - ?) * (current_lng - ?)',
                 [$order->lat, $order->lat, $order->lng, $order->lng],
             )
+            ->first();
+
+        return $technician;
+    }
+
+    /**
+     * For a scheduled order, current availability/location is irrelevant — what
+     * matters is whether the technician's calendar is free at the requested time.
+     * Offer to a qualified tech with no appointment overlapping the booked window.
+     */
+    private function nextForScheduled(Order $order): ?Technician
+    {
+        $start = $order->scheduled_at;
+        if ($start === null) {
+            return null;
+        }
+        $end = $start->copy()->addMinutes((int) AppSetting::get('appointment_duration_minutes', 120));
+
+        /** @var Technician|null $technician */
+        $technician = Technician::query()
+            ->whereIn('status', [TechnicianStatus::Active, TechnicianStatus::Probation])
+            ->whereNotIn('id', $order->dispatchOffers()->pluck('technician_id'))
+            ->whereRelation('services', 'service_categories.id', $order->service_category_id)
+            ->whereDoesntHave('appointments', function (Builder $query) use ($start, $end) {
+                $query->whereIn('status', [AppointmentStatus::Confirmed, AppointmentStatus::Activated])
+                    ->where('starts_at', '<', $end)
+                    ->where('ends_at', '>', $start);
+            })
+            ->orderBy('id')
             ->first();
 
         return $technician;
@@ -86,10 +130,20 @@ class AssignmentService
                 throw new OfferUnavailableException('This offer can no longer be accepted.');
             }
 
+            // A scheduled order books an appointment and waits for activation; an
+            // urgent one goes straight on-site. book() throws (rolling back this
+            // accept) if the slot conflicts, so the tech can't be double-booked.
+            if ($order->type === OrderType::Scheduled) {
+                $this->schedulingService->book($order, $lockedOffer->technician_id);
+                $nextStatus = OrderStatus::Scheduled;
+            } else {
+                $nextStatus = OrderStatus::Accepted;
+            }
+
             // Assign from the offer itself so a wrong technician can never be attached.
             $order->update([
                 'technician_id' => $lockedOffer->technician_id,
-                'status' => OrderStatus::Accepted,
+                'status' => $nextStatus,
             ]);
 
             $lockedOffer->update([

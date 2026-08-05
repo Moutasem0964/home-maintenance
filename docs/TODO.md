@@ -41,9 +41,16 @@ an oversight.
   forever, so the release cron keeps re-selecting it (finds no held payments,
   does nothing). Safe but wasteful. *When:* escrow-cron branch — add a settled
   marker or a "has held payments" filter to the query.
-- **Scheduled orders + appointments flow.** `book / confirm / activate / cancel`
-  in a `SchedulingService`; `activateDueAppointments` + `remindUpcomingAppointments`
-  cron jobs. *When:* scheduling branch.
+- ~~**Scheduled orders + appointments flow.**~~ DONE (feature/scheduling-appointments):
+  `SchedulingService::book` (on accept of a scheduled order → confirmed appointment,
+  order `Scheduled`), `activateDue` + `remindUpcoming` crons, and scheduled dispatch
+  offers only to time-conflict-free technicians. Still deferred within this area:
+  (a) **appointment cancellation** — `SchedulingService::cancel` to free the slot +
+  refund the inspection hold, part of the broader cancellation slice; (b) the
+  **pending→confirmed handshake** — appointments are created `Confirmed` directly on
+  accept (the `Pending` state is reserved for a future explicit client-confirm step);
+  (c) **repair/followup appointments** — only the first `inspection` visit is booked;
+  a multi-visit job doesn't yet spawn follow-on appointments.
 - **Nearest-tech is a squared-euclidean approximation.** `AssignmentService`
   orders by `(lat-x)^2 + (lng-y)^2` (portable, no DB math funcs). Fine at city
   scale; swap for haversine + the bounding-box prefilter (SRS note 13) when the
