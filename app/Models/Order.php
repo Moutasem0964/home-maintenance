@@ -15,6 +15,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property OrderStatus $status
+ * @property OrderType $type
+ * @property Carbon|null $scheduled_at
  * @property numeric-string $commission_rate
  * @property numeric-string $commission_amount
  * @property numeric-string $inspection_fee

@@ -20,3 +20,9 @@ Schedule::command('orders:release-holds')->hourly();
 // Auto-complete orders whose closure review window elapsed with no client action
 // (client neither used the code nor disputed) — frees the technician.
 Schedule::command('closure:auto-complete')->everyMinute();
+
+// Activate confirmed appointments whose time has arrived (scheduled order -> on-site).
+Schedule::command('appointments:activate-due')->everyMinute();
+
+// Remind clients/technicians of appointments starting within the lead window (UC-26).
+Schedule::command('appointments:remind')->everyFiveMinutes();

@@ -27,6 +27,7 @@ class AppSettingSeeder extends Seeder
             ['key' => 'cancel_fee_share',         'value' => '0.30', 'data_type' => 'decimal', 'description' => 'Share of inspection fee kept for technician on late cancel'],
             ['key' => 'probation_daily_limit',    'value' => '3',    'data_type' => 'int',     'description' => 'Default daily order cap during technician probation'],
             ['key' => 'appointment_reminder_minutes', 'value' => '60', 'data_type' => 'int',   'description' => 'UC-26: reminder sent this long before the appointment'],
+            ['key' => 'appointment_duration_minutes', 'value' => '120', 'data_type' => 'int',  'description' => 'Default booked visit length used to block overlapping appointments'],
         ];
 
         foreach ($settings as $setting) {
