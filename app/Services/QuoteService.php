@@ -94,7 +94,7 @@ class QuoteService
         });
     }
 
-    /** Client rejects: the order closes as inspection-only (money handled in the escrow/no-show slice). */
+    /** Client rejects: the order closes as inspection-only and the inspection fee is released to the tech. */
     public function reject(Quote $quote): Order
     {
         return DB::transaction(function () use ($quote) {
@@ -109,6 +109,8 @@ class QuoteService
 
             $lockedQuote->update(['status' => QuoteStatus::Rejected]);
             $order->update(['status' => OrderStatus::InspectionOnly]);
+            // The technician still performed the diagnostic visit — release the inspection fee.
+            $this->escrowService->releaseFunds($order, "inspection-only:{$order->id}");
 
             OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteRejected]);
 
@@ -139,6 +141,7 @@ class QuoteService
 
                 $locked->update(['status' => QuoteStatus::Expired]);
                 $order->update(['status' => OrderStatus::InspectionOnly]);
+                $this->escrowService->releaseFunds($order, "inspection-only:{$order->id}");
                 OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteExpired]);
 
                 return true;

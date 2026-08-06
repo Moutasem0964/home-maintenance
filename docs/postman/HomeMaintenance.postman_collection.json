@@ -19,7 +19,8 @@
     { "key": "quote_id", "value": "", "type": "string" },
     { "key": "closure_code", "value": "", "type": "string" },
     { "key": "dispute_id", "value": "", "type": "string" },
-    { "key": "warranty_order_id", "value": "", "type": "string" }
+    { "key": "warranty_order_id", "value": "", "type": "string" },
+    { "key": "flag_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -320,6 +321,66 @@
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/approve", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "approve"] },
             "description": "Admin only. Log in as an admin (Auth > Login) so {{token}} is an admin token, set {{technician_id}}, then approve → status active."
+          }
+        },
+        {
+          "name": "Suspend Technician (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"note\": \"Repeated withdrawals over two weeks.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/suspend", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "suspend"] },
+            "description": "Admin only. Sanction for reliability failures: status → probation with a capped daily order limit and taken offline. Also resolves that tech's open flags with outcome=suspended (+ optional note). Re-approve to reinstate."
+          }
+        },
+        {
+          "name": "Ban Technician (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"note\": \"Multiple no-shows; removed.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/ban", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "ban"] },
+            "description": "Admin only. status → banned and taken offline (removed from anywhere). Also resolves that tech's open flags with outcome=banned (+ optional note)."
+          }
+        },
+        {
+          "name": "List Technician Flags (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const json = pm.response.json();",
+                "if (json.data && json.data[0]) { pm.collectionVariables.set('flag_id', json.data[0].id); }"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/admin/technician-flags", "host": ["{{base_url}}"], "path": ["api", "admin", "technician-flags"] },
+            "description": "Admin only. The queue of open reliability offenses (no-show / withdrawal) awaiting assessment, newest first. Saves the first id to {{flag_id}}."
+          }
+        },
+        {
+          "name": "Review Technician Flag (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"note\": \"First offense — warning only.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/admin/technician-flags/{{flag_id}}/review", "host": ["{{base_url}}"], "path": ["api", "admin", "technician-flags", "{{flag_id}}", "review"] },
+            "description": "Admin only. Marks a flag reviewed (dismiss / acknowledge) with an optional note. For an actual sanction, use suspend/ban (which also clears the tech's open flags)."
           }
         },
         {

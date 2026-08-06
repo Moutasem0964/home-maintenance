@@ -19,13 +19,13 @@ an oversight.
 - ~~**`isReleasable` only allows `Completed`.**~~ DONE (feature/disputes):
   `isReleasable` now allows `Completed` *and* `Resolved` (both gated on
   `! hasOpenDispute`), so an admin `release_to_technician` resolution settles.
-- **`no_show` release path — DONE; `inspection_only` still pending.** `NoShow` is
-  now in the `isReleasable` allow-list, so client-no-show releases the fee to the
-  tech (feature/cancellation-noshow). `inspection_only` (quote rejected/expired)
-  still moves status without releasing the inspection fee. *When:* inspection-release
-  branch. NOTE: cancel-fee and no-show payouts reuse `settlePartial`/`releaseFunds`,
-  so they inherit the (currently applied) inspection commission; when the "inspection
-  carries no commission" fix lands, these inherit it automatically.
+- ~~**`no_show` / `inspection_only` release paths.**~~ DONE. Both `NoShow` and
+  `InspectionOnly` are in the `isReleasable` allow-list; client-no-show and
+  quote-rejection/expiry now release the inspection fee to the tech (releaseFunds
+  early-returns when nothing is held, so orders with no fee are unaffected). NOTE:
+  these reuse `settlePartial`/`releaseFunds`, so they inherit the (currently applied)
+  inspection commission; when the "inspection carries no commission" fix lands, these
+  inherit it automatically.
 - **Multi-payment release test.** Current release test has one held payment.
   Add a test with inspection + repair held together to prove the loop pays the
   sum minus commission. *When:* after order-creation exists to produce two holds.
@@ -58,9 +58,15 @@ an oversight.
   orders by `(lat-x)^2 + (lng-y)^2` (portable, no DB math funcs). Fine at city
   scale; swap for haversine + the bounding-box prefilter (SRS note 13) when the
   tech pool grows. *When:* performance/scale pass.
-- ~~**Technician withdraw-after-accept.**~~ DONE (feature/cancellation-noshow):
-  `POST /orders/{id}/withdraw` frees the slot, returns the order to Pending and
-  re-dispatches. No technician penalty applied yet (probation/rating hit) — deferred.
+- ~~**Technician withdraw-after-accept + reliability flagging.**~~ DONE. Withdraw
+  (`POST /orders/{id}/withdraw`) frees the slot, returns the order to Pending and
+  re-dispatches. Reliability failures (withdraw / no-show) now raise a **`technician_flags`**
+  row (captured with the tech id before withdraw nulls `technician_id`) for admin
+  assessment — the system flags, the admin decides (SRS-faithful: no auto-sanction).
+  Admin: `GET /admin/technician-flags` (open queue), `POST /admin/technician-flags/{id}/review`
+  (dismiss + note), and `POST /admin/technicians/{id}/suspend|ban` which also auto-resolve
+  that tech's open flags. *Deferred:* an `acceptance_rate`/rating impact, flagging
+  disputes lost by the tech, and admin reinstate beyond re-`approve`.
 
 ## Quotes (feature/quotes)
 
@@ -184,8 +190,10 @@ an oversight.
   feedback. *When:* dispatch branch.
 - **KYC document upload deferred.** Encrypted `id_doc/selfie/criminal_record/proof`
   columns exist but no upload endpoint — needs file storage. *When:* its own slice.
-- **Reject / ban / probation transitions + `daily_order_limit`.** Only
-  pending→active is wired. *When:* admin / dispute branches.
+- **Reject / ban / probation transitions + `daily_order_limit`.** Admin-driven
+  approve (→active), suspend (→probation + `probation_daily_limit` + offline) and ban
+  (→banned + offline) are wired. Still missing: rejection→pending and a proper
+  reinstate flow (re-`approve` currently doubles as reinstate). *When:* admin-panel branch.
 
 ## Product / team decisions (not code)
 
