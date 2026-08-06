@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminTechnicianController;
+use App\Http\Controllers\Api\AdminTechnicianFlagController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CancellationController;
 use App\Http\Controllers\Api\CategoryController;
@@ -68,4 +69,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('technician/offers/{offer}/decline', [TechnicianOfferController::class, 'decline']);
 
     Route::post('admin/technicians/{technician}/approve', [AdminTechnicianController::class, 'approve']);
+    Route::post('admin/technicians/{technician}/suspend', [AdminTechnicianController::class, 'suspend']);
+    Route::post('admin/technicians/{technician}/ban', [AdminTechnicianController::class, 'ban']);
+
+    Route::get('admin/technician-flags', [AdminTechnicianFlagController::class, 'index']);
+    Route::post('admin/technician-flags/{flag}/review', [AdminTechnicianFlagController::class, 'review']);
 });

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
+use App\Enums\TechnicianFlagReason;
 use App\Models\AppSetting;
 use App\Models\Order;
 use App\Models\OrderEvent;
@@ -15,6 +16,7 @@ class CancellationService
         private readonly EscrowService $escrowService,
         private readonly SchedulingService $schedulingService,
         private readonly AssignmentService $assignmentService,
+        private readonly TechnicianFlagService $flagService,
     ) {}
 
     /**
@@ -72,9 +74,16 @@ class CancellationService
                 throw new \DomainException('This job can no longer be withdrawn.');
             }
 
+            $technicianId = $locked->technician_id; // capture before the detach nulls it
+
             $this->schedulingService->cancelFor($locked);
             $locked->update(['technician_id' => null, 'status' => OrderStatus::Pending]);
             OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::TechnicianWithdrew]);
+
+            // Flag the offense for admin assessment (no auto-sanction).
+            if ($technicianId !== null) {
+                $this->flagService->raise($technicianId, TechnicianFlagReason::Withdrawal, $locked->id);
+            }
 
             $this->assignmentService->offerToNext($locked);
 
@@ -119,9 +128,16 @@ class CancellationService
                 throw new \DomainException('A no-show can only be reported for an accepted, un-started job.');
             }
 
+            $technicianId = $locked->technician_id;
+
             $this->escrowService->refundOrder($locked, "noshow:tech:{$locked->id}");
             $locked->update(['status' => OrderStatus::NoShow]);
             OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
+
+            // Flag the no-show for admin assessment (no auto-sanction).
+            if ($technicianId !== null) {
+                $this->flagService->raise($technicianId, TechnicianFlagReason::NoShow, $locked->id);
+            }
 
             return $locked;
         });

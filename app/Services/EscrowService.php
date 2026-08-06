@@ -35,10 +35,12 @@ class EscrowService
     private function isReleasable(Order $order): bool
     {
         return match ($order->status) {
-            // Completed = normal settlement after the dispute window.
-            // Resolved  = an admin resolved a dispute in the technician's favour.
-            // NoShow    = client didn't show; the inspection fee goes to the technician.
-            OrderStatus::Completed, OrderStatus::Resolved, OrderStatus::NoShow => ! $order->hasOpenDispute(),
+            // Completed      = normal settlement after the dispute window.
+            // Resolved       = an admin resolved a dispute in the technician's favour.
+            // NoShow         = client didn't show; the inspection fee goes to the technician.
+            // InspectionOnly = quote rejected/expired; the technician keeps the inspection fee.
+            OrderStatus::Completed, OrderStatus::Resolved,
+            OrderStatus::NoShow, OrderStatus::InspectionOnly => ! $order->hasOpenDispute(),
             default => false,
         };
     }
@@ -129,13 +131,17 @@ class EscrowService
                 return;
             }
 
+            $payments = $order->payments()->where('status', PaymentStatus::Held)->get();
+            if ($payments->isEmpty()) {
+                return; // nothing held (e.g. an inspection-only order with no fee) — no-op
+            }
+
             $platform = $this->platformService->account();
 
             $platformWallet = $platform->wallet()->lockForUpdate()->firstOrFail();
             $payeeWallet = $order->technician->user->wallet()->lockForUpdate()->firstOrFail();
             $payerWallet = $order->client->wallet()->lockForUpdate()->firstOrFail();
 
-            $payments = $order->payments()->where('status', PaymentStatus::Held)->get();
             foreach ($payments as $payment) {
                 $this->recordLedgerEntry(
                     $payerWallet,

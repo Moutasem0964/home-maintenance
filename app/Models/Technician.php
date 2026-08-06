@@ -77,6 +77,11 @@ class Technician extends Model
         return $this->hasMany(Withdrawal::class);
     }
 
+    public function flags(): HasMany
+    {
+        return $this->hasMany(TechnicianFlag::class);
+    }
+
     public function canAcceptMore(): bool
     {
         if ($this->status !== TechnicianStatus::Probation || $this->daily_order_limit === null) {
