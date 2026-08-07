@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('orders/{order}/closure/code', [ClosureController::class, 'code']);
     Route::post('orders/{order}/closure/verify', [ClosureController::class, 'verify']);
 
+    Route::get('disputes', [DisputeController::class, 'index']);
     Route::post('orders/{order}/dispute', [DisputeController::class, 'store']);
     Route::post('disputes/{dispute}/resolve', [DisputeController::class, 'resolve']);
 
