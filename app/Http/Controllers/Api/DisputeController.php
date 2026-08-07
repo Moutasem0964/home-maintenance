@@ -13,9 +13,25 @@ use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\DisputeService;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class DisputeController extends Controller
 {
+    /** The authenticated client's disputes (across all their orders), newest first. */
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $disputes = Dispute::query()
+            ->whereHas('order', fn ($query) => $query->where('client_id', $user->id))
+            ->latest()
+            ->get();
+
+        return DisputeResource::collection($disputes);
+    }
+
     /** Client raises a dispute on their own completed order during the dispute window. */
     public function store(RaiseDisputeRequest $request, int $order, DisputeService $disputeService): DisputeResource
     {

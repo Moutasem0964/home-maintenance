@@ -3,11 +3,13 @@
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AdminTechnicianFlagController;
+use App\Http\Controllers\Api\AppSettingController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CancellationController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ClosureController;
 use App\Http\Controllers\Api\DisputeController;
+use App\Http\Controllers\Api\OfficeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\ReviewController;
@@ -34,8 +36,11 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::get('categories', [CategoryController::class, 'index']);
+Route::get('app-settings', [AppSettingController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('offices', [OfficeController::class, 'index']);
+
     Route::get('wallet', [WalletController::class, 'show']);
     Route::post('wallet/top-up', [WalletController::class, 'topUp']);
 
@@ -51,6 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('orders/{order}/closure/code', [ClosureController::class, 'code']);
     Route::post('orders/{order}/closure/verify', [ClosureController::class, 'verify']);
 
+    Route::get('disputes', [DisputeController::class, 'index']);
     Route::post('orders/{order}/dispute', [DisputeController::class, 'store']);
     Route::post('disputes/{dispute}/resolve', [DisputeController::class, 'resolve']);
 

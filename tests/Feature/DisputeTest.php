@@ -69,6 +69,36 @@ class DisputeTest extends TestCase
         return [$order, $client, $tech];
     }
 
+    public function test_disputes_index_requires_authentication(): void
+    {
+        $this->getJson('/api/disputes')->assertUnauthorized();
+    }
+
+    public function test_client_lists_only_their_own_disputes(): void
+    {
+        [$order, $client] = $this->completedOrder();
+        Dispute::create([
+            'order_id' => $order->id,
+            'raised_by' => $client->id,
+            'reason' => DisputeReason::FaultReturned,
+            'status' => DisputeStatus::Open,
+        ]);
+
+        // Another client's dispute that must NOT appear in the first client's list.
+        [$otherOrder, $otherClient] = $this->completedOrder();
+        Dispute::create([
+            'order_id' => $otherOrder->id,
+            'raised_by' => $otherClient->id,
+            'reason' => DisputeReason::Other,
+            'status' => DisputeStatus::Open,
+        ]);
+
+        $this->actingAs($client, 'sanctum')->getJson('/api/disputes')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.order_id', $order->id);
+    }
+
     /** Open a dispute directly (bypasses the raise endpoint) for resolve-side tests. */
     private function openDisputeOn(Order $order, User $client): Dispute
     {

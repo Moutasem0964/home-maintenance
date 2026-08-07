@@ -18,7 +18,7 @@ class OrderResource extends JsonResource
             'type' => $this->type,
             'kind' => $this->kind,
             'service_category_id' => $this->service_category_id,
-            'address_id' => $this->address_id,
+            'address' => $this->whenLoaded('address', fn () => $this->address ? new AddressResource($this->address) : null),
             'lat' => $this->lat,
             'lng' => $this->lng,
             'description' => $this->description,

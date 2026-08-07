@@ -30,6 +30,9 @@ class Order extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /** Always load the address so OrderResource can embed the full AddressResource. */
+    protected $with = ['address'];
+
     protected $fillable = [
         'client_id',
         'idempotency_key',
