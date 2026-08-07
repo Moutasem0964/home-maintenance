@@ -27,24 +27,28 @@ class TechnicianRegisterTest extends TestCase
 
     private string $phone = '0913333333';
 
-    private function startAndCode(): string
+    /** start → capture code → verify, returning the single-use registration ticket. */
+    private function verifiedTicket(): string
     {
-        $this->postJson('/api/auth/register/start', ['phone' => $this->phone, 'name' => 'Tech'])->assertOk();
+        $this->postJson('/api/auth/register/start', ['phone' => $this->phone])->assertOk();
+        $code = (string) $this->sms->lastCodeFor('+9639'.substr($this->phone, -8));
 
-        return (string) $this->sms->lastCodeFor('+9639'.substr($this->phone, -8));
+        return (string) $this->postJson('/api/auth/register/verify', ['phone' => $this->phone, 'code' => $code])
+            ->assertOk()
+            ->json('ticket');
     }
 
     public function test_registration_creates_a_pending_technician_with_wallet(): void
     {
-        $code = $this->startAndCode();
+        $ticket = $this->verifiedTicket();
 
         $this->postJson('/api/auth/register/technician', [
             'phone' => $this->phone,
-            'code' => $code,
             'name' => 'Tech Guy',
             'password' => 'Password123',
             'password_confirmation' => 'Password123',
             'charter_accepted' => true,
+            'ticket' => $ticket,
         ])->assertCreated()->assertJsonStructure(['token', 'user' => ['id', 'role']]);
 
         $user = User::where('phone', '+9639'.substr($this->phone, -8))->firstOrFail();
@@ -59,33 +63,32 @@ class TechnicianRegisterTest extends TestCase
 
     public function test_registration_requires_charter_acceptance(): void
     {
-        $code = $this->startAndCode();
+        $ticket = $this->verifiedTicket();
 
         $this->postJson('/api/auth/register/technician', [
             'phone' => $this->phone,
-            'code' => $code,
             'name' => 'Tech Guy',
             'password' => 'Password123',
             'password_confirmation' => 'Password123',
             'charter_accepted' => false,
+            'ticket' => $ticket,
         ])->assertStatus(422)->assertJsonValidationErrors(['charter_accepted']);
 
         $this->assertDatabaseCount('technicians', 0);
     }
 
-    public function test_registration_rejects_a_wrong_code(): void
+    public function test_registration_rejects_an_invalid_ticket(): void
     {
-        $real = $this->startAndCode();
-        $wrong = $real === '0000' ? '1111' : '0000';
+        $this->verifiedTicket(); // a real ticket exists, but we present a bogus one
 
         $this->postJson('/api/auth/register/technician', [
             'phone' => $this->phone,
-            'code' => $wrong,
             'name' => 'Tech Guy',
             'password' => 'Password123',
             'password_confirmation' => 'Password123',
             'charter_accepted' => true,
-        ])->assertStatus(422)->assertJsonValidationErrors(['code']);
+            'ticket' => 'not-a-real-ticket',
+        ])->assertStatus(422)->assertJsonValidationErrors(['ticket']);
 
         $this->assertDatabaseCount('technicians', 0);
     }

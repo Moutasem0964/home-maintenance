@@ -4,7 +4,6 @@ namespace App\Http\Requests\Auth;
 
 use App\Support\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password;
 
 class RegisterVerifyRequest extends FormRequest
 {
@@ -24,8 +23,6 @@ class RegisterVerifyRequest extends FormRequest
         return [
             'phone' => ['required', 'string', 'unique:users,phone'],
             'code' => ['required', 'string'],
-            'name' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'confirmed', Password::defaults()],
         ];
     }
 }

@@ -22,7 +22,6 @@ class RegisterStartRequest extends FormRequest
     {
         return [
             'phone' => ['required', 'string', 'unique:users,phone'],
-            'name' => ['required', 'string', 'max:255'],
         ];
     }
 }

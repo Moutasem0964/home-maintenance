@@ -6,7 +6,7 @@ use App\Support\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
-class PasswordResetRequest extends FormRequest
+class RegisterClientRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -22,7 +22,8 @@ class PasswordResetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['required', 'string'],
+            'phone' => ['required', 'string', 'unique:users,phone'],
+            'name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'ticket' => ['required', 'string'],
         ];
