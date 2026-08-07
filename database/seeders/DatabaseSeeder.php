@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             AppSettingSeeder::class,
             ServiceCategorySeeder::class,
             AdminSeeder::class,
+            OfficeSeeder::class,
             PlatformSeeder::class,
         ]);
     }
