@@ -5,6 +5,7 @@ namespace App\Http\Requests\Order;
 use App\Enums\OrderType;
 use App\Models\AppSetting;
 use App\Models\User;
+use App\Rules\LeafServiceCategory;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,10 +26,7 @@ class StoreOrderRequest extends FormRequest
 
         return [
             'operation_id' => ['required', 'string', 'max:64'],
-            'service_category_id' => [
-                'required', 'integer',
-                Rule::exists('service_categories', 'id')->where('is_active', true),
-            ],
+            'service_category_id' => ['required', 'integer', new LeafServiceCategory],
             'address_id' => [
                 'required', 'integer',
                 Rule::exists('addresses', 'id')->where('user_id', $user->id),
