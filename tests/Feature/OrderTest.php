@@ -114,6 +114,53 @@ class OrderTest extends TestCase
         ]);
     }
 
+    public function test_order_response_embeds_full_address_not_just_id(): void
+    {
+        $user = $this->fundedClient();
+        $category = ServiceCategory::factory()->create();
+        $address = Address::factory()->for($user)->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
+            'service_category_id' => $category->id,
+            'address_id' => $address->id,
+            'type' => 'urgent',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.address.id', $address->id)
+            ->assertJsonStructure(['data' => ['address' => ['id', 'label', 'lat', 'lng']]]);
+    }
+
+    public function test_scheduled_order_rejects_appointment_beyond_10_days(): void
+    {
+        $user = $this->fundedClient();
+        $category = ServiceCategory::factory()->create();
+        $address = Address::factory()->for($user)->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
+            'service_category_id' => $category->id,
+            'address_id' => $address->id,
+            'type' => 'scheduled',
+            'scheduled_at' => now()->addDays(11)->toIso8601String(),
+        ])->assertStatus(422)->assertJsonValidationErrors(['scheduled_at']);
+    }
+
+    public function test_scheduled_order_accepts_appointment_within_10_days(): void
+    {
+        $user = $this->fundedClient();
+        $category = ServiceCategory::factory()->create();
+        $address = Address::factory()->for($user)->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/orders', [
+            'operation_id' => $this->opId(),
+            'service_category_id' => $category->id,
+            'address_id' => $address->id,
+            'type' => 'scheduled',
+            'scheduled_at' => now()->addDays(5)->toIso8601String(),
+        ])->assertCreated();
+    }
+
     // ---------- Idempotency ----------
 
     public function test_is_idempotent_on_operation_id(): void

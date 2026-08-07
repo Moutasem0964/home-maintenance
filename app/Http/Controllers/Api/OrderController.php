@@ -36,7 +36,7 @@ class OrderController extends Controller
             ]);
         }
 
-        return (new OrderResource($order))->response()->setStatusCode(201);
+        return (new OrderResource($order->loadMissing('address')))->response()->setStatusCode(201);
     }
 
     public function show(Request $request, int $order): OrderResource

@@ -32,6 +32,6 @@ class WarrantyController extends Controller
             abort(409, $e->getMessage());
         }
 
-        return new OrderResource($warranty);
+        return new OrderResource($warranty->loadMissing('address'));
     }
 }
