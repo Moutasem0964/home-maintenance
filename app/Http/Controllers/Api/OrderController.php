@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\InsufficientBalanceException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Order\OrderIndexRequest;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
+use App\Models\Order;
 use App\Models\User;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
@@ -15,12 +17,23 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(OrderIndexRequest $request): AnonymousResourceCollection
     {
         /** @var User $user */
         $user = $request->user();
 
-        return OrderResource::collection($user->orders()->latest()->get());
+        // Role-aware: a technician sees the orders assigned to them; a client sees
+        // the orders they placed. (0 is an unmatchable id so a tech with no profile
+        // gets an empty list rather than every unassigned order.)
+        $query = $user->isTechnician()
+            ? Order::query()->where('technician_id', $user->technician()->value('id') ?? 0)
+            : $user->orders()->getQuery();
+
+        if ($status = $request->validated('status')) {
+            $query->where('status', $status);
+        }
+
+        return OrderResource::collection($query->latest()->get());
     }
 
     public function store(StoreOrderRequest $request, OrderService $orderService): JsonResponse
