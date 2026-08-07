@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ClosureController;
 use App\Http\Controllers\Api\DisputeController;
 use App\Http\Controllers\Api\OfficeController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TechnicianController;
@@ -40,6 +41,7 @@ Route::get('app-settings', [AppSettingController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('offices', [OfficeController::class, 'index']);
+    Route::put('profile', [ProfileController::class, 'update']);
 
     Route::get('wallet', [WalletController::class, 'show']);
     Route::post('wallet/top-up', [WalletController::class, 'topUp']);
