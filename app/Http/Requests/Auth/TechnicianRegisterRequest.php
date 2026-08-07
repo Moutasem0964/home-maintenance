@@ -23,10 +23,10 @@ class TechnicianRegisterRequest extends FormRequest
     {
         return [
             'phone' => ['required', 'string', 'unique:users,phone'],
-            'code' => ['required', 'string'],
             'name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'charter_accepted' => ['accepted'],
+            'ticket' => ['required', 'string'],
         ];
     }
 }

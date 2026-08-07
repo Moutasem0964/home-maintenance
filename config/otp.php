@@ -8,6 +8,10 @@ return [
     'lockout_minutes' => (int) env('OTP_LOCKOUT_MINUTES', 15),
     'resend_cooldown_seconds' => (int) env('OTP_RESEND_COOLDOWN_SECONDS', 60),
 
+    // How long a verification ticket (issued after a successful OTP verify) stays
+    // valid for the follow-up action — account creation or password reset.
+    'ticket_ttl_minutes' => (int) env('OTP_TICKET_TTL_MINUTES', 10),
+
     // TEMPORARY: when true, register/start returns the OTP in the response so the
     // frontend can test without SMS. Keep false in real production. Remove once the
     // real SMS driver is wired.

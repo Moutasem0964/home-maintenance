@@ -24,20 +24,31 @@ class AuthTest extends TestCase
         $this->app->instance(SmsSender::class, $this->sms);
     }
 
-    /** Run start → capture code → verify, returning the response. */
-    private function registerFlow(string $phone = '0912345678', string $name = 'Test Client', string $password = 'Password123'): array
+    /** Run start → capture code → verify, returning the single-use registration ticket. */
+    private function verifyForRegister(string $phone = '0912345678'): string
     {
-        $this->postJson('/api/auth/register/start', ['phone' => $phone, 'name' => $name])->assertOk();
+        $this->postJson('/api/auth/register/start', ['phone' => $phone])->assertOk();
 
         $normalized = '+9639'.substr(preg_replace('/\D/', '', $phone), -8);
         $code = $this->sms->lastCodeFor($normalized);
 
-        $response = $this->postJson('/api/auth/register/verify', [
+        return (string) $this->postJson('/api/auth/register/verify', ['phone' => $phone, 'code' => $code])
+            ->assertOk()
+            ->json('ticket');
+    }
+
+    /** Full three-step client registration: start → verify → register/client. */
+    private function registerFlow(string $phone = '0912345678', string $name = 'Test Client', string $password = 'Password123'): array
+    {
+        $ticket = $this->verifyForRegister($phone);
+        $normalized = '+9639'.substr(preg_replace('/\D/', '', $phone), -8);
+
+        $response = $this->postJson('/api/auth/register/client', [
             'phone' => $phone,
-            'code' => $code,
             'name' => $name,
             'password' => $password,
             'password_confirmation' => $password,
+            'ticket' => $ticket,
         ]);
 
         return [$response, $normalized];
@@ -47,13 +58,21 @@ class AuthTest extends TestCase
 
     public function test_register_start_sends_a_code(): void
     {
-        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678'])
             ->assertOk();
 
         $this->assertTrue($this->sms->sentTo('+963912345678') || $this->sms->sentTo('+9639'.substr('0912345678', -8)));
     }
 
-    public function test_register_verify_creates_verified_client_with_wallet_and_token(): void
+    public function test_register_verify_returns_a_ticket_without_creating_a_user(): void
+    {
+        $ticket = $this->verifyForRegister();
+
+        $this->assertNotEmpty($ticket);
+        $this->assertDatabaseCount('users', 0); // verify alone must not create the account
+    }
+
+    public function test_register_client_creates_verified_client_with_wallet_and_token(): void
     {
         [$response, $phone] = $this->registerFlow();
 
@@ -65,17 +84,16 @@ class AuthTest extends TestCase
         $this->assertTrue($user->wallet()->exists());
     }
 
-    public function test_register_verify_ignores_a_role_field_in_the_payload(): void
+    public function test_register_client_ignores_a_role_field_in_the_payload(): void
     {
-        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])->assertOk();
-        $code = $this->sms->lastCodeFor('+9639'.substr('0912345678', -8));
+        $ticket = $this->verifyForRegister();
 
-        $this->postJson('/api/auth/register/verify', [
+        $this->postJson('/api/auth/register/client', [
             'phone' => '0912345678',
-            'code' => $code,
             'name' => 'A',
             'password' => 'Password123',
             'password_confirmation' => 'Password123',
+            'ticket' => $ticket,
             'role' => 'admin', // must be ignored
         ])->assertCreated();
 
@@ -84,22 +102,34 @@ class AuthTest extends TestCase
 
     public function test_register_verify_rejects_a_wrong_code(): void
     {
-        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])->assertOk();
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678'])->assertOk();
 
         $this->postJson('/api/auth/register/verify', [
             'phone' => '0912345678',
             'code' => '0000',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_register_client_rejects_an_invalid_ticket(): void
+    {
+        $this->verifyForRegister(); // a real ticket exists, but we present a bogus one
+
+        $this->postJson('/api/auth/register/client', [
+            'phone' => '0912345678',
             'name' => 'A',
             'password' => 'Password123',
             'password_confirmation' => 'Password123',
-        ])->assertStatus(422);
+            'ticket' => 'not-a-real-ticket',
+        ])->assertStatus(422)->assertJsonValidationErrors(['ticket']);
 
         $this->assertDatabaseCount('users', 0);
     }
 
     public function test_register_start_rejects_a_malformed_phone(): void
     {
-        $this->postJson('/api/auth/register/start', ['phone' => '12345', 'name' => 'A'])
+        $this->postJson('/api/auth/register/start', ['phone' => '12345'])
             ->assertStatus(422);
     }
 
@@ -107,7 +137,7 @@ class AuthTest extends TestCase
     {
         User::factory()->create(['phone' => '+963912345678']);
 
-        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678'])
             ->assertStatus(422);
     }
 
@@ -160,19 +190,31 @@ class AuthTest extends TestCase
 
     // ── password reset (UC-21) ───────────────────────────────────────────────
 
+    /** forgot → capture code → verify, returning the single-use reset ticket. */
+    private function verifyForReset(string $phone = '0912345678'): string
+    {
+        $normalized = '+9639'.substr(preg_replace('/\D/', '', $phone), -8);
+
+        $this->postJson('/api/auth/password/forgot', ['phone' => $phone])->assertOk();
+        $code = $this->sms->lastCodeFor($normalized);
+
+        return (string) $this->postJson('/api/auth/password/verify', ['phone' => $phone, 'code' => $code])
+            ->assertOk()
+            ->json('ticket');
+    }
+
     public function test_password_reset_updates_password_and_revokes_sessions(): void
     {
         $user = User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);
         $user->createToken('mobile'); // an existing session
 
-        $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
-        $code = $this->sms->lastCodeFor('+963912345678');
+        $ticket = $this->verifyForReset();
 
         $this->postJson('/api/auth/password/reset', [
             'phone' => '0912345678',
-            'code' => $code,
             'password' => 'NewPass123',
             'password_confirmation' => 'NewPass123',
+            'ticket' => $ticket,
         ])->assertOk();
 
         $this->assertSame(0, $user->tokens()->count(), 'old sessions must be revoked');
@@ -197,23 +239,59 @@ class AuthTest extends TestCase
         $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
     }
 
-    public function test_password_reset_rejects_a_wrong_code(): void
+    public function test_password_verify_rejects_a_wrong_code(): void
     {
         User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);
         $this->postJson('/api/auth/password/forgot', ['phone' => '0912345678'])->assertOk();
 
-        $this->postJson('/api/auth/password/reset', [
+        $this->postJson('/api/auth/password/verify', [
             'phone' => '0912345678',
             'code' => '0000',
+        ])->assertStatus(422);
+    }
+
+    public function test_password_reset_rejects_an_invalid_ticket(): void
+    {
+        User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);
+        $this->verifyForReset(); // a real ticket exists, but we present a bogus one
+
+        $this->postJson('/api/auth/password/reset', [
+            'phone' => '0912345678',
             'password' => 'NewPass123',
             'password_confirmation' => 'NewPass123',
-        ])->assertStatus(422);
+            'ticket' => 'not-a-real-ticket',
+        ])->assertStatus(422)->assertJsonValidationErrors(['ticket']);
+
+        // Password unchanged → old credentials still work.
+        $this->postJson('/api/auth/login', ['phone' => '0912345678', 'password' => 'OldPass123'])->assertOk();
+    }
+
+    public function test_reset_ticket_is_single_use(): void
+    {
+        User::factory()->verified()->create(['phone' => '+963912345678', 'password' => 'OldPass123']);
+        $ticket = $this->verifyForReset();
+
+        // First reset succeeds and consumes the ticket.
+        $this->postJson('/api/auth/password/reset', [
+            'phone' => '0912345678',
+            'password' => 'NewPass123',
+            'password_confirmation' => 'NewPass123',
+            'ticket' => $ticket,
+        ])->assertOk();
+
+        // Replaying the same ticket must fail — single-use.
+        $this->postJson('/api/auth/password/reset', [
+            'phone' => '0912345678',
+            'password' => 'Another123',
+            'password_confirmation' => 'Another123',
+            'ticket' => $ticket,
+        ])->assertStatus(422)->assertJsonValidationErrors(['ticket']);
     }
 
     public function test_register_start_enforces_the_resend_cooldown(): void
     {
-        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])->assertOk();
-        $this->postJson('/api/auth/register/start', ['phone' => '0912345678', 'name' => 'A'])->assertStatus(429);
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678'])->assertOk();
+        $this->postJson('/api/auth/register/start', ['phone' => '0912345678'])->assertStatus(429);
     }
 
     // ── session ──────────────────────────────────────────────────────────────

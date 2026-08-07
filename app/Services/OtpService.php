@@ -83,6 +83,41 @@ class OtpService
         return false;
     }
 
+    /**
+     * Issue a single-use verification ticket after a successful OTP verify. The plaintext
+     * is returned to the client; only a hash is stored, valid for otp.ticket_ttl_minutes.
+     * The follow-up action (registration / password reset) redeems it via consumeTicket().
+     */
+    public function issueTicket(string $phone, string $purpose): string
+    {
+        $ticket = bin2hex(random_bytes(32));
+
+        Cache::put(
+            $this->ticketKey($phone, $purpose),
+            Hash::make($ticket),
+            now()->addMinutes((int) config('otp.ticket_ttl_minutes')),
+        );
+
+        return $ticket;
+    }
+
+    /** Redeem a verification ticket. Returns true once, then forgets it (single-use). */
+    public function consumeTicket(string $phone, string $purpose, string $ticket): bool
+    {
+        $storedHash = Cache::get($this->ticketKey($phone, $purpose));
+        if ($storedHash === null) {
+            return false;
+        }
+
+        if (! Hash::check($ticket, $storedHash)) {
+            return false;
+        }
+
+        Cache::forget($this->ticketKey($phone, $purpose)); // single-use
+
+        return true;
+    }
+
     private function generateCode(): string
     {
         $length = (int) config('otp.length');
@@ -116,5 +151,10 @@ class OtpService
     private function cooldownKey(string $phone, string $purpose): string
     {
         return "otp:cooldown:{$purpose}:{$phone}";
+    }
+
+    private function ticketKey(string $phone, string $purpose): string
+    {
+        return "otp:ticket:{$purpose}:{$phone}";
     }
 }
