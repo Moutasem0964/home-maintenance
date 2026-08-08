@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class ReviewService
 {
+    public function __construct(private readonly ProbationService $probationService) {}
+
     /**
      * The client leaves the one-and-only review for a finished order. price_anomaly_flag
      * is derived server-side from a low price rating, so the admin board can surface
@@ -49,6 +51,7 @@ class ReviewService
         }
 
         $this->recalculateRating($order->technician_id);
+        $this->probationService->evaluate(Technician::findOrFail($order->technician_id));
 
         return $review;
     }

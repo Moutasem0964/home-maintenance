@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{order}/no-show/technician', [CancellationController::class, 'technicianNoShow']);
 
     Route::get('technician/me', [TechnicianController::class, 'me']);
+    Route::get('technician/probation-progress', [TechnicianController::class, 'probationProgress']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);
     Route::put('technician/availability', [TechnicianController::class, 'setAvailability']);
 

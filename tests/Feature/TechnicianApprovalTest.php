@@ -20,7 +20,7 @@ class TechnicianApprovalTest extends TestCase
         $this->postJson("/api/admin/technicians/{$technician->id}/approve")->assertUnauthorized();
     }
 
-    public function test_admin_can_approve_a_pending_technician(): void
+    public function test_admin_can_approve_a_pending_technician_into_probation(): void
     {
         $admin = User::factory()->admin()->create();
         $technician = Technician::factory()->create(); // pending
@@ -28,9 +28,10 @@ class TechnicianApprovalTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/technicians/{$technician->id}/approve")
             ->assertOk()
-            ->assertJsonPath('data.status', 'active');
+            ->assertJsonPath('data.status', 'probation');
 
-        $this->assertSame(TechnicianStatus::Active, $technician->refresh()->status);
+        // Onboarding lands in probation (trial), not straight to active.
+        $this->assertSame(TechnicianStatus::Probation, $technician->refresh()->status);
     }
 
     public function test_a_non_admin_cannot_approve(): void

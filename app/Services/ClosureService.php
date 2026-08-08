@@ -10,11 +10,14 @@ use App\Models\AppSetting;
 use App\Models\Order;
 use App\Models\OrderEvent;
 use App\Models\Quote;
+use App\Models\Technician;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class ClosureService
 {
+    public function __construct(private readonly ProbationService $probationService) {}
+
     /**
      * The assigned technician requests closure when the work is done. The server
      * mints a fresh code and stores it encrypted, but (per SRS note 4) never returns
@@ -101,6 +104,10 @@ class ClosureService
         });
 
         if ($outcome instanceof Order) {
+            if ($outcome->technician_id !== null) {
+                $this->probationService->evaluate(Technician::findOrFail($outcome->technician_id));
+            }
+
             return $outcome;
         }
 
@@ -157,6 +164,9 @@ class ClosureService
 
             if ($didComplete) {
                 $completed++;
+                if ($order->technician_id !== null) {
+                    $this->probationService->evaluate(Technician::findOrFail($order->technician_id));
+                }
             }
         }
 

@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Technician\SetAvailabilityRequest;
 use App\Http\Requests\Technician\SetServicesRequest;
 use App\Http\Resources\TechnicianResource;
+use App\Services\ProbationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TechnicianController extends Controller
@@ -16,6 +18,14 @@ class TechnicianController extends Controller
     public function me(Request $request): TechnicianResource
     {
         return new TechnicianResource($this->technicianFor($request)->load('services'));
+    }
+
+    /** Progress toward promotion from probation to active (jobs done, rating vs thresholds). */
+    public function probationProgress(Request $request, ProbationService $probationService): JsonResponse
+    {
+        return response()->json([
+            'data' => $probationService->progress($this->technicianFor($request)),
+        ]);
     }
 
     public function setServices(SetServicesRequest $request): TechnicianResource
