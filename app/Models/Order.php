@@ -46,6 +46,7 @@ class Order extends Model
         'kind',
         'type',
         'scheduled_at',
+        'arrived_at',
         'status',
         'dispute_deadline_at',
         'warranty_until',
@@ -66,6 +67,7 @@ class Order extends Model
             'lat' => 'decimal:7',
             'lng' => 'decimal:7',
             'scheduled_at' => 'datetime',
+            'arrived_at' => 'datetime',
             'closure_code' => 'encrypted', // verified server-side only (SRS note 4)
             'closure_expires_at' => 'datetime',
             'closure_verified_at' => 'datetime',

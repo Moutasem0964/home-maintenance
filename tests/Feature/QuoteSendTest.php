@@ -32,6 +32,7 @@ class QuoteSendTest extends TestCase
             'service_category_id' => $category->id,
             'technician_id' => $tech->id,
             'status' => OrderStatus::Accepted,
+            'arrived_at' => now(), // tech is on-site; quoting is unlocked
         ]);
 
         return [$order, $tech];
@@ -54,6 +55,16 @@ class QuoteSendTest extends TestCase
         [$order] = $this->acceptedOrder();
 
         $this->postJson("/api/orders/{$order->id}/quotes", $this->payload())->assertUnauthorized();
+    }
+
+    public function test_cannot_send_a_quote_before_marking_arrival(): void
+    {
+        [$order, $tech] = $this->acceptedOrder();
+        $order->update(['arrived_at' => null]); // accepted but not yet on-site
+
+        $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
+            ->postJson("/api/orders/{$order->id}/quotes", $this->payload())
+            ->assertStatus(409);
     }
 
     public function test_only_the_assigned_technician_can_send_a_quote(): void

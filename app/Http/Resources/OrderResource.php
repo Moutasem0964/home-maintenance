@@ -23,6 +23,7 @@ class OrderResource extends JsonResource
             'lng' => $this->lng,
             'description' => $this->description,
             'scheduled_at' => $this->scheduled_at,
+            'arrived_at' => $this->arrived_at,
             'inspection_fee' => $this->inspection_fee,
             'commission_rate' => $this->commission_rate,
             'photos' => OrderPhotoResource::collection($this->whenLoaded('photos')),

@@ -28,6 +28,7 @@ class AppSettingSeeder extends Seeder
             ['key' => 'probation_daily_limit',    'value' => '3',    'data_type' => 'int',     'description' => 'Default daily order cap during technician probation'],
             ['key' => 'appointment_reminder_minutes', 'value' => '60', 'data_type' => 'int',   'description' => 'UC-26: reminder sent this long before the appointment'],
             ['key' => 'appointment_duration_minutes', 'value' => '120', 'data_type' => 'int',  'description' => 'Default booked visit length used to block overlapping appointments'],
+            ['key' => 'arrival_radius_meters',    'value' => '50',   'data_type' => 'int',     'description' => 'Max distance (m) from the order location for a technician to mark arrival'],
             ['key' => 'scheduled_max_days',       'value' => '10',   'data_type' => 'int',     'description' => 'Max days ahead a scheduled order appointment may be booked'],
         ];
 
