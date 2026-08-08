@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Commercial record of one escrow payment lifecycle on an order.
  *
+ * @property PaymentType $type
  * @property PaymentStatus $status
  * @property numeric-string $amount
  * @property numeric-string $commission_amount
