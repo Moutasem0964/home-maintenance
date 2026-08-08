@@ -6,9 +6,11 @@ use App\Exceptions\InsufficientBalanceException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\OrderIndexRequest;
 use App\Http\Requests\Order\StoreOrderRequest;
+use App\Enums\OrderPhotoKind;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\OrderPhotoService;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,7 +38,7 @@ class OrderController extends Controller
         return OrderResource::collection($query->latest()->get());
     }
 
-    public function store(StoreOrderRequest $request, OrderService $orderService): JsonResponse
+    public function store(StoreOrderRequest $request, OrderService $orderService, OrderPhotoService $photoService): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -49,7 +51,12 @@ class OrderController extends Controller
             ]);
         }
 
-        return (new OrderResource($order->loadMissing('address')))->response()->setStatusCode(201);
+        // Attach the client's flaw photos once (guard keeps idempotent retries clean).
+        if ($request->hasFile('photos') && $order->photos()->doesntExist()) {
+            $photoService->store($order, $request->file('photos'), OrderPhotoKind::Flaw, $user->id);
+        }
+
+        return (new OrderResource($order->loadMissing('address', 'photos')))->response()->setStatusCode(201);
     }
 
     public function show(Request $request, int $order): OrderResource

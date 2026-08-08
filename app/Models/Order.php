@@ -30,8 +30,8 @@ class Order extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /** Always load the address so OrderResource can embed the full AddressResource. */
-    protected $with = ['address'];
+    /** Always load address + photos so OrderResource can embed them. */
+    protected $with = ['address', 'photos'];
 
     protected $fillable = [
         'client_id',
@@ -107,6 +107,11 @@ class Order extends Model
     public function childOrders(): HasMany
     {
         return $this->hasMany(self::class, 'parent_order_id');
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(OrderPhoto::class);
     }
 
     public function appointments(): HasMany
