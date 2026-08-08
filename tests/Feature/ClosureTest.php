@@ -8,6 +8,8 @@ use App\Models\Technician;
 use App\Models\User;
 use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ClosureTest extends TestCase
@@ -18,6 +20,13 @@ class ClosureTest extends TestCase
     {
         parent::setUp();
         $this->seed(AppSettingSeeder::class);
+        Storage::fake('local');
+    }
+
+    /** Multipart body with a single fake completion photo (required by closure/request). */
+    private function closurePhotos(): array
+    {
+        return ['photos' => [UploadedFile::fake()->image('done.jpg')]];
     }
 
     /** @return array{0: Order, 1: User, 2: Technician} — in-progress order, its client, its technician. */
@@ -38,7 +47,7 @@ class ClosureTest extends TestCase
     private function activeCode(User $client, Technician $tech, Order $order): string
     {
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
-            ->postJson("/api/orders/{$order->id}/closure/request")->assertOk();
+            ->post("/api/orders/{$order->id}/closure/request", $this->closurePhotos(), ['Accept' => 'application/json'])->assertOk();
 
         return $this->actingAs($client, 'sanctum')
             ->getJson("/api/orders/{$order->id}/closure/code")->json('code');
@@ -66,12 +75,13 @@ class ClosureTest extends TestCase
         [$order, , $tech] = $this->inProgressOrder();
 
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
-            ->postJson("/api/orders/{$order->id}/closure/request")
+            ->post("/api/orders/{$order->id}/closure/request", $this->closurePhotos(), ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonStructure(['message', 'expires_at']);
 
         $this->assertNotNull($order->refresh()->closure_expires_at);
         $this->assertDatabaseHas('order_events', ['order_id' => $order->id, 'event_type' => 'closure_generated']);
+        $this->assertDatabaseHas('order_photos', ['order_id' => $order->id, 'kind' => 'closure']);
     }
 
     public function test_cannot_request_closure_when_the_order_is_not_in_progress(): void
@@ -83,6 +93,16 @@ class ClosureTest extends TestCase
             ->postJson("/api/orders/{$order->id}/closure/request")->assertStatus(409);
     }
 
+    public function test_request_requires_completion_photos(): void
+    {
+        [$order, , $tech] = $this->inProgressOrder();
+
+        $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
+            ->postJson("/api/orders/{$order->id}/closure/request") // no photos attached
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['photos']);
+    }
+
     // ---------- fetch code (client) ----------
 
     public function test_client_fetches_the_active_code(): void
@@ -90,7 +110,7 @@ class ClosureTest extends TestCase
         [$order, $client, $tech] = $this->inProgressOrder();
 
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
-            ->postJson("/api/orders/{$order->id}/closure/request")->assertOk();
+            ->post("/api/orders/{$order->id}/closure/request", $this->closurePhotos(), ['Accept' => 'application/json'])->assertOk();
 
         $this->actingAs($client, 'sanctum')
             ->getJson("/api/orders/{$order->id}/closure/code")
@@ -103,7 +123,7 @@ class ClosureTest extends TestCase
         [$order, , $tech] = $this->inProgressOrder();
 
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
-            ->postJson("/api/orders/{$order->id}/closure/request")->assertOk();
+            ->post("/api/orders/{$order->id}/closure/request", $this->closurePhotos(), ['Accept' => 'application/json'])->assertOk();
 
         // The technician must never read the code from the server (SRS note 4).
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
