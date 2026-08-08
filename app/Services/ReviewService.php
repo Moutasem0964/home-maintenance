@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Review;
+use App\Models\Technician;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 
 class ReviewService
 {
@@ -31,7 +33,7 @@ class ReviewService
         }
 
         try {
-            return Review::create([
+            $review = Review::create([
                 'order_id' => $order->id,
                 'client_id' => $client->id,
                 'technician_id' => $order->technician_id,
@@ -45,5 +47,24 @@ class ReviewService
             // A concurrent second review lost the unique-index race.
             throw new \DomainException('You have already reviewed this order.');
         }
+
+        $this->recalculateRating($order->technician_id);
+
+        return $review;
+    }
+
+    /**
+     * Recompute the technician's cached rating_avg as the mean, across all their
+     * reviews, of each review's (cleanliness + quality + price_rating) / 3. Kept in
+     * sync synchronously on every new review.
+     */
+    private function recalculateRating(int $technicianId): void
+    {
+        $average = Review::where('technician_id', $technicianId)
+            ->avg(DB::raw('(cleanliness + quality + price_rating) / 3.0'));
+
+        Technician::whereKey($technicianId)->update([
+            'rating_avg' => $average !== null ? round((float) $average, 2) : null,
+        ]);
     }
 }

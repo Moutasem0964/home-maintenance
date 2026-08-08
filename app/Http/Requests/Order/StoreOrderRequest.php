@@ -5,6 +5,7 @@ namespace App\Http\Requests\Order;
 use App\Enums\OrderType;
 use App\Models\AppSetting;
 use App\Models\User;
+use App\Rules\LeafServiceCategory;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,10 +26,7 @@ class StoreOrderRequest extends FormRequest
 
         return [
             'operation_id' => ['required', 'string', 'max:64'],
-            'service_category_id' => [
-                'required', 'integer',
-                Rule::exists('service_categories', 'id')->where('is_active', true),
-            ],
+            'service_category_id' => ['required', 'integer', new LeafServiceCategory],
             'address_id' => [
                 'required', 'integer',
                 Rule::exists('addresses', 'id')->where('user_id', $user->id),
@@ -36,6 +34,9 @@ class StoreOrderRequest extends FormRequest
             'type' => ['required', Rule::enum(OrderType::class)],
             'scheduled_at' => ['required_if:type,scheduled', 'nullable', 'date', 'after:now', 'before_or_equal:'.now()->addDays($maxDays)->toDateTimeString()],
             'description' => ['nullable', 'string', 'max:1000'],
+            // Optional flaw photos (private disk). Images only, capped to protect VM disk.
+            'photos' => ['sometimes', 'array', 'max:3'],
+            'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }

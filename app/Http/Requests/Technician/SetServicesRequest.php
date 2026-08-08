@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Technician;
 
+use App\Rules\LeafServiceCategory;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class SetServicesRequest extends FormRequest
 {
@@ -17,10 +17,7 @@ class SetServicesRequest extends FormRequest
     {
         return [
             'service_category_ids' => ['required', 'array', 'min:1'],
-            'service_category_ids.*' => [
-                'integer',
-                Rule::exists('service_categories', 'id')->where('is_active', true),
-            ],
+            'service_category_ids.*' => ['integer', new LeafServiceCategory],
         ];
     }
 }

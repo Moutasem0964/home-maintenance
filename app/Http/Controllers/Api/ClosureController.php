@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderPhotoKind;
 use App\Enums\OrderStatus;
 use App\Exceptions\ClosureCodeException;
 use App\Http\Controllers\Controller;
@@ -11,17 +12,31 @@ use App\Models\Order;
 use App\Models\Technician;
 use App\Models\User;
 use App\Services\ClosureService;
+use App\Services\OrderPhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ClosureController extends Controller
 {
-    /** Assigned technician signals the work is done; the server mints a code for the client. */
-    public function requestCode(Request $request, int $order, ClosureService $closureService): JsonResponse
+    /**
+     * Assigned technician signals the work is done, attaching 1–3 completion photos
+     * (kept as dispute evidence); the server then mints a code for the client. Photos
+     * are validated AFTER the auth + status checks so those take precedence.
+     */
+    public function requestCode(Request $request, int $order, ClosureService $closureService, OrderPhotoService $photoService): JsonResponse
     {
         $orderModel = Order::findOrFail($order);
         $this->assertAssignedTechnician($request, $orderModel);
         abort_unless($orderModel->status === OrderStatus::InProgress, 409, 'The order is not in progress.');
+
+        $request->validate([
+            'photos' => ['required', 'array', 'min:1', 'max:3'],
+            'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+        $photoService->store($orderModel, $request->file('photos'), OrderPhotoKind::Closure, $user->id);
 
         $closureService->generate($orderModel);
 
