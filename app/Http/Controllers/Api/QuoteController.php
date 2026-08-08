@@ -40,6 +40,7 @@ class QuoteController extends Controller
 
         abort_if($technician === null || $orderModel->technician_id !== $technician->id, 403, 'This is not your order.');
         abort_unless($orderModel->status === OrderStatus::Accepted, 409, 'The order is not awaiting a quote.');
+        abort_if($orderModel->arrived_at === null, 409, 'You must mark arrival on-site before sending a quote.');
         abort_if($orderModel->quotes()->where('status', QuoteStatus::Pending)->exists(), 409, 'A pending quote already exists.');
 
         $quote = $quoteService->createInitialQuote($orderModel, $request->validated());
