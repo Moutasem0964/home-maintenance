@@ -40,9 +40,12 @@ class AuthService
      * plus its wallet in one transaction. Role is fixed to Technician here — never
      * taken from request input.
      */
-    public function registerTechnician(string $phone, string $name, string $password): User
+    /**
+     * @param  array<string, string>  $documents  KYC file paths: id_front_url, id_back_url, selfie_url
+     */
+    public function registerTechnician(string $phone, string $name, string $password, array $documents = []): User
     {
-        return DB::transaction(function () use ($phone, $name, $password) {
+        return DB::transaction(function () use ($phone, $name, $password, $documents) {
             $user = User::create([
                 'name' => $name,
                 'phone' => $phone,
@@ -59,6 +62,9 @@ class AuthService
                 'user_id' => $user->id,
                 'status' => TechnicianStatus::Pending,
                 'charter_accepted_at' => now(),
+                'id_front_url' => $documents['id_front_url'] ?? null,
+                'id_back_url' => $documents['id_back_url'] ?? null,
+                'selfie_url' => $documents['selfie_url'] ?? null,
             ]);
 
             return $user;
