@@ -91,7 +91,14 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['ticket' => 'Phone verification is required or has expired.']);
         }
 
-        $user = $this->authService->registerTechnician($data['phone'], $data['name'], $data['password']);
+        // Store the KYC files on the PRIVATE disk (never public URLs), keep the paths.
+        $documents = [
+            'id_front_url' => $request->file('id_front')->store('technician/kyc', 'local'),
+            'id_back_url' => $request->file('id_back')->store('technician/kyc', 'local'),
+            'selfie_url' => $request->file('selfie')->store('technician/kyc', 'local'),
+        ];
+
+        $user = $this->authService->registerTechnician($data['phone'], $data['name'], $data['password'], $documents);
 
         return response()->json([
             'token' => $this->authService->issueToken($user),

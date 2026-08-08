@@ -355,12 +355,21 @@
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0913333333\",\n  \"name\": \"Tech Guy\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\",\n  \"charter_accepted\": true,\n  \"ticket\": \"{{register_ticket}}\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "phone", "value": "0913333333", "type": "text" },
+                { "key": "name", "value": "Tech Guy", "type": "text" },
+                { "key": "password", "value": "Password123", "type": "text" },
+                { "key": "password_confirmation", "value": "Password123", "type": "text" },
+                { "key": "charter_accepted", "value": "true", "type": "text" },
+                { "key": "ticket", "value": "{{register_ticket}}", "type": "text" },
+                { "key": "id_front", "type": "file", "src": [] },
+                { "key": "id_back", "type": "file", "src": [] },
+                { "key": "selfie", "type": "file", "src": [] }
+              ]
             },
             "url": { "raw": "{{base_url}}/api/auth/register/technician", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "technician"] },
-            "description": "First run Auth > Register — Start (phone 0913333333) then Register — Verify OTP so {{register_ticket}} is set. Redeems the ticket, creates a technician (status=pending) and logs you in as them (saves {{token}})."
+            "description": "Multipart form-data. First run Auth > Register — Start (phone 0913333333) then Register — Verify OTP so {{register_ticket}} is set. Attach id_front, id_back, selfie image files. Redeems the ticket, creates a technician (status=pending) and logs you in (saves {{token}})."
           }
         },
         {

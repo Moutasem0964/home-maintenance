@@ -27,6 +27,10 @@ class TechnicianRegisterRequest extends FormRequest
             'password' => ['required', 'confirmed', Password::defaults()],
             'charter_accepted' => ['accepted'],
             'ticket' => ['required', 'string'],
+            // KYC uploads (private disk). Images only, capped to protect the VM disk.
+            'id_front' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'id_back' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'selfie' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }
