@@ -96,13 +96,15 @@ class OrderPhotoTest extends TestCase
             'uploaded_by' => $client->id,
         ]);
 
+        // Unauthenticated cannot (checked first, before any acting-as state is set).
+        $this->getJson("/api/order-photos/{$photo->id}")->assertUnauthorized();
+
         // Participants can view.
         $this->actingAs($client, 'sanctum')->get("/api/order-photos/{$photo->id}")->assertOk();
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')->get("/api/order-photos/{$photo->id}")->assertOk();
 
-        // A stranger cannot; unauthenticated cannot.
+        // A stranger cannot.
         $stranger = User::factory()->verified()->create();
         $this->actingAs($stranger, 'sanctum')->get("/api/order-photos/{$photo->id}")->assertForbidden();
-        $this->getJson("/api/order-photos/{$photo->id}")->assertUnauthorized();
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\OrderPhoto;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class OrderPhotoController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+        /** @var Order $order */
         $order = $orderPhoto->order()->firstOrFail();
 
         $isClient = $order->client_id === $user->id;

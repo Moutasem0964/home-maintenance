@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderPhotoKind;
 use App\Enums\OrderStatus;
 use App\Exceptions\ClosureCodeException;
 use App\Http\Controllers\Controller;
-use App\Enums\OrderPhotoKind;
 use App\Http\Requests\Order\VerifyClosureRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
