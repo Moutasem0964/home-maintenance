@@ -97,10 +97,23 @@ class CancellationTest extends TestCase
         $this->actingAs($client, 'sanctum')
             ->postJson("/api/orders/{$order->id}/cancel")->assertOk();
 
-        // 30% of 50 = 15 to the tech (− 10% commission = 13.50), 70% = 35 refunded to the client.
+        // Not arrived → 50/50: 25 to the tech (− 10% commission = 22.50), 25 refunded to the client.
         $this->assertSame(OrderStatus::Canceled, $order->refresh()->status);
-        $this->assertSame(485.0, (float) $client->wallet()->firstOrFail()->available_balance); // 450 + 35
-        $this->assertSame(13.5, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+        $this->assertSame(475.0, (float) $client->wallet()->firstOrFail()->available_balance); // 450 + 25
+        $this->assertSame(22.5, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+    }
+
+    public function test_cancel_after_the_tech_arrives_releases_the_full_fee_to_the_tech(): void
+    {
+        [$order, $client, $tech] = $this->heldOrder(OrderStatus::Accepted, ['arrived_at' => now()]);
+
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/orders/{$order->id}/cancel")->assertOk();
+
+        // Tech made the trip → full 50 fee released (− 10% commission = 45), client refunded nothing.
+        $this->assertSame(OrderStatus::Canceled, $order->refresh()->status);
+        $this->assertSame(450.0, (float) $client->wallet()->firstOrFail()->available_balance); // unchanged
+        $this->assertSame(45.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
     }
 
     public function test_late_cancel_of_a_scheduled_order_frees_the_appointment(): void

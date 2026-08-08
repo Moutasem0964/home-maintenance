@@ -20,10 +20,13 @@ class CancellationService
     ) {}
 
     /**
-     * Client cancels their order. Before a technician commits (Pending) the inspection
-     * fee is refunded in full; once a tech is on the hook (Accepted/Scheduled) it's a
-     * late cancel — the tech keeps cancel_fee_share of the fee, the rest is refunded,
-     * and the booked slot is freed. Once work is underway, cancellation is closed.
+     * Client cancels their order. The inspection-fee outcome depends on how far along it is:
+     *   - Pending (no tech committed): refunded in full.
+     *   - Accepted/Scheduled but the tech has NOT arrived: split (cancel_fee_share = 50/50),
+     *     the rest refunded, the booked slot freed.
+     *   - Accepted and the tech has ALREADY arrived (arrived_at set): the whole inspection
+     *     fee goes to the technician — they made the trip, like a client no-show.
+     *   - In progress or later: cancellation is closed (dispute route only).
      */
     public function cancelByClient(Order $order): Order
     {
@@ -34,7 +37,13 @@ class CancellationService
             if ($locked->status === OrderStatus::Pending) {
                 $this->escrowService->refundOrder($locked, "cancel:{$locked->id}:refund");
             } elseif (in_array($locked->status, [OrderStatus::Accepted, OrderStatus::Scheduled], true)) {
-                $this->lateCancelRefund($locked);
+                if ($locked->arrived_at !== null) {
+                    // Tech already reached the site → the whole inspection fee is theirs.
+                    $this->escrowService->releaseFunds($locked, "cancel:{$locked->id}:release");
+                } else {
+                    // Committed but not yet on-site → split the inspection fee.
+                    $this->lateCancelRefund($locked);
+                }
                 $this->schedulingService->cancelFor($locked);
             } else {
                 throw new \DomainException('This order can no longer be canceled.');
@@ -50,7 +59,7 @@ class CancellationService
     /** Refund the client all but the technician's cancel-fee share of the inspection fee. */
     private function lateCancelRefund(Order $order): void
     {
-        $share = number_format((float) AppSetting::get('cancel_fee_share', 0.30), 2, '.', '');
+        $share = number_format((float) AppSetting::get('cancel_fee_share', 0.50), 2, '.', '');
         $clientShare = bcsub('1.00', $share, 2);
         $refund = bcmul((string) $order->inspection_fee, $clientShare, 2);
 
