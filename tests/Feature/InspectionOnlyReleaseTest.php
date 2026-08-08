@@ -74,8 +74,8 @@ class InspectionOnlyReleaseTest extends TestCase
         app(QuoteService::class)->reject($quote);
 
         $this->assertSame(OrderStatus::InspectionOnly, $order->refresh()->status);
-        // 50 − 10% commission = 45 to the tech for the diagnostic visit.
-        $this->assertSame(45.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+        // Full 50 to the tech for the diagnostic visit — no commission on the inspection fee.
+        $this->assertSame(50.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'released']);
     }
 
@@ -87,6 +87,6 @@ class InspectionOnlyReleaseTest extends TestCase
         app(QuoteService::class)->expireStaleQuotes();
 
         $this->assertSame(OrderStatus::InspectionOnly, $order->refresh()->status);
-        $this->assertSame(45.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+        $this->assertSame(50.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
     }
 }

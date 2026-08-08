@@ -83,7 +83,8 @@ class EscrowService
                 'payee_id' => null,
                 'type' => $paymentType,
                 'amount' => $amount,
-                'commission_amount' => bcmul($amount, $order->commission_rate, 2),
+                // No commission on the inspection/visit fee — the platform's cut is on repair work only.
+                'commission_amount' => $paymentType === PaymentType::Inspection ? '0.00' : bcmul($amount, $order->commission_rate, 2),
                 'status' => PaymentStatus::Held,
                 'idempotency_key' => $idempotencyKey,
                 'held_at' => now(),
@@ -361,7 +362,7 @@ class EscrowService
                 }
 
                 if (bccomp($releaseShare, '0', 2) > 0) {
-                    $commission = bcmul($releaseShare, $order->commission_rate, 2);
+                    $commission = $payment->type === PaymentType::Inspection ? '0.00' : bcmul($releaseShare, $order->commission_rate, 2);
                     $technicianCut = bcsub($releaseShare, $commission, 2);
 
                     $this->recordLedgerEntry(

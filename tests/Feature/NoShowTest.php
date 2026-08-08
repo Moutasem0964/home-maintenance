@@ -58,9 +58,9 @@ class NoShowTest extends TestCase
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
             ->postJson("/api/orders/{$order->id}/no-show/client")->assertOk();
 
-        // 50 − 10% commission = 45 to the tech.
+        // Full 50 to the tech — no commission on the inspection fee.
         $this->assertSame(OrderStatus::NoShow, $order->refresh()->status);
-        $this->assertSame(45.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+        $this->assertSame(50.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'released']);
     }
 
