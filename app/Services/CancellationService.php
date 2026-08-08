@@ -24,8 +24,8 @@ class CancellationService
      *   - Pending (no tech committed): refunded in full.
      *   - Accepted/Scheduled but the tech has NOT arrived: split (cancel_fee_share = 50/50),
      *     the rest refunded, the booked slot freed.
-     *   - Accepted and the tech has ALREADY arrived (arrived_at set): the whole inspection
-     *     fee goes to the technician — they made the trip, like a client no-show.
+     *   - Accepted and the tech has ALREADY arrived (arrived_at set): recorded as a no-show —
+     *     the whole inspection fee is released to the technician (they made the trip).
      *   - In progress or later: cancellation is closed (dispute route only).
      */
     public function cancelByClient(Order $order): Order
@@ -36,21 +36,26 @@ class CancellationService
 
             if ($locked->status === OrderStatus::Pending) {
                 $this->escrowService->refundOrder($locked, "cancel:{$locked->id}:refund");
+                $locked->update(['status' => OrderStatus::Canceled]);
+                OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::Canceled]);
             } elseif (in_array($locked->status, [OrderStatus::Accepted, OrderStatus::Scheduled], true)) {
-                if ($locked->arrived_at !== null) {
-                    // Tech already reached the site → the whole inspection fee is theirs.
-                    $this->escrowService->releaseFunds($locked, "cancel:{$locked->id}:release");
-                } else {
-                    // Committed but not yet on-site → split the inspection fee.
-                    $this->lateCancelRefund($locked);
-                }
                 $this->schedulingService->cancelFor($locked);
+
+                if ($locked->arrived_at !== null) {
+                    // Tech already reached the site → effectively a client no-show. Set the
+                    // status FIRST (isReleasable allows NoShow), then release the full fee.
+                    $locked->update(['status' => OrderStatus::NoShow]);
+                    $this->escrowService->releaseFunds($locked, "cancel:{$locked->id}:release");
+                    OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
+                } else {
+                    // Committed but not yet on-site → split the inspection fee 50/50.
+                    $this->lateCancelRefund($locked);
+                    $locked->update(['status' => OrderStatus::Canceled]);
+                    OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::Canceled]);
+                }
             } else {
                 throw new \DomainException('This order can no longer be canceled.');
             }
-
-            $locked->update(['status' => OrderStatus::Canceled]);
-            OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::Canceled]);
 
             return $locked;
         });

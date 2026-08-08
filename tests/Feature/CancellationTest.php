@@ -110,8 +110,9 @@ class CancellationTest extends TestCase
         $this->actingAs($client, 'sanctum')
             ->postJson("/api/orders/{$order->id}/cancel")->assertOk();
 
-        // Tech made the trip → full 50 fee released (− 10% commission = 45), client refunded nothing.
-        $this->assertSame(OrderStatus::Canceled, $order->refresh()->status);
+        // Tech made the trip → recorded as a no-show; full 50 fee released (− 10% commission
+        // = 45), client refunded nothing.
+        $this->assertSame(OrderStatus::NoShow, $order->refresh()->status);
         $this->assertSame(450.0, (float) $client->wallet()->firstOrFail()->available_balance); // unchanged
         $this->assertSame(45.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
     }
