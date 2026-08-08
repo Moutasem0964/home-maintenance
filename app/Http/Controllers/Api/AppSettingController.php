@@ -25,6 +25,7 @@ class AppSettingController extends Controller
         'probation_daily_limit',
         'min_withdrawal_amount',
         'scheduled_max_days',
+        'arrival_radius_meters',
     ];
 
     public function index(): JsonResponse
