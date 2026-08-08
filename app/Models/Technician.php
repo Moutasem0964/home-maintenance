@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property TechnicianStatus $status
  * @property int|null $daily_order_limit
+ * @property numeric-string|null $rating_avg
  */
 class Technician extends Model
 {

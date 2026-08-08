@@ -9,6 +9,7 @@ use App\Models\Technician;
 use App\Models\User;
 use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 class ProbationTest extends TestCase
@@ -21,7 +22,7 @@ class ProbationTest extends TestCase
         $this->seed(AppSettingSeeder::class); // promotion_min_orders = 5, promotion_min_rating = 4.0
     }
 
-    /** @return array{0: Technician, 1: User, 2: \Illuminate\Support\Collection<int, Order>} */
+    /** @return array{0: Technician, 1: User, 2: Collection<int, Order>} */
     private function probationTechWithCompletedOrders(int $count): array
     {
         $client = User::factory()->verified()->create();
