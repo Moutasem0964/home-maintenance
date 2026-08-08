@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Technician;
-use App\Models\User;
 use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
