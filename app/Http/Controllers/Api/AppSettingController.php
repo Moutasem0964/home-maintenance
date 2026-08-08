@@ -23,6 +23,8 @@ class AppSettingController extends Controller
         'appointment_reminder_minutes',
         'cancel_fee_share',
         'probation_daily_limit',
+        'promotion_min_orders',
+        'promotion_min_rating',
         'min_withdrawal_amount',
         'scheduled_max_days',
         'arrival_radius_meters',

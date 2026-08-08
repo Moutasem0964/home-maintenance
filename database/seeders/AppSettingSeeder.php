@@ -26,6 +26,8 @@ class AppSettingSeeder extends Seeder
             ['key' => 'price_anomaly_multiplier', 'value' => '2.0',  'data_type' => 'decimal', 'description' => 'FR-A2: alert when quote exceeds guide price by this factor'],
             ['key' => 'cancel_fee_share',         'value' => '0.50', 'data_type' => 'decimal', 'description' => 'Tech share of the inspection fee on a not-yet-arrived late cancel (50/50)'],
             ['key' => 'probation_daily_limit',    'value' => '3',    'data_type' => 'int',     'description' => 'Default daily order cap during technician probation'],
+            ['key' => 'promotion_min_orders',     'value' => '5',    'data_type' => 'int',     'description' => 'Completed orders required to promote a technician from probation to active'],
+            ['key' => 'promotion_min_rating',     'value' => '4.0',  'data_type' => 'decimal', 'description' => 'Minimum average rating required to promote from probation to active'],
             ['key' => 'appointment_reminder_minutes', 'value' => '60', 'data_type' => 'int',   'description' => 'UC-26: reminder sent this long before the appointment'],
             ['key' => 'appointment_duration_minutes', 'value' => '120', 'data_type' => 'int',  'description' => 'Default booked visit length used to block overlapping appointments'],
             ['key' => 'arrival_radius_meters',    'value' => '50',   'data_type' => 'int',     'description' => 'Max distance (m) from the order location for a technician to mark arrival'],

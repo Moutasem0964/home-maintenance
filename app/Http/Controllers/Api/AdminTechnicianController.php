@@ -26,8 +26,13 @@ class AdminTechnicianController extends Controller
     {
         $this->assertAdmin($request);
 
+        // Onboarding done (office visit / contract / deposit happen offline) → start the
+        // trial in probation, not straight to active. Auto-promotion handles the rest.
         $model = Technician::findOrFail($technician);
-        $model->update(['status' => TechnicianStatus::Active]);
+        $model->update([
+            'status' => TechnicianStatus::Probation,
+            'daily_order_limit' => (int) AppSetting::get('probation_daily_limit', 3),
+        ]);
 
         return new TechnicianResource($model->load('services'));
     }
