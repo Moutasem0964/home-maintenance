@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Telescope\IncomingEntry;
 use Laravel\Telescope\Telescope;
@@ -66,8 +67,10 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
     protected function gate(): void
     {
         // Telescope + phpMyAdmin bind to the server's localhost and are only reachable
-        // over the operator's SSH tunnel, so the gate itself can stay open.
-        Gate::define('viewTelescope', function () {
+        // over the operator's SSH tunnel, so the gate stays open. The ?User param is
+        // required: Laravel gates deny guests unless the first param is nullable, and
+        // Telescope is viewed unauthenticated over the tunnel.
+        Gate::define('viewTelescope', function (?User $user) {
             return true;
         });
     }
