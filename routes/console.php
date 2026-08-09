@@ -26,3 +26,5 @@ Schedule::command('appointments:activate-due')->everyMinute();
 
 // Remind clients/technicians of appointments starting within the lead window (UC-26).
 Schedule::command('appointments:remind')->everyFiveMinutes();
+
+Schedule::command('telescope:prune --hours=24')->daily();
