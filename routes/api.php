@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DisputeController;
 use App\Http\Controllers\Api\OfficeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderPhotoController;
+use App\Http\Controllers\Api\PartsWaitController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\ReviewController;
@@ -58,6 +59,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject']);
 
     Route::post('orders/{order}/arrive', [ArrivalController::class, 'store']);
+
+    Route::post('orders/{order}/waiting-for-parts', [PartsWaitController::class, 'wait']);
+    Route::post('orders/{order}/resume', [PartsWaitController::class, 'resume']);
 
     Route::post('orders/{order}/closure/request', [ClosureController::class, 'requestCode']);
     Route::get('orders/{order}/closure/code', [ClosureController::class, 'code']);

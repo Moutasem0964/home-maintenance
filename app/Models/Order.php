@@ -17,6 +17,8 @@ use Illuminate\Support\Carbon;
  * @property OrderStatus $status
  * @property OrderType $type
  * @property Carbon|null $scheduled_at
+ * @property Carbon|null $parts_waiting_until
+ * @property Carbon|null $parts_overdue_flagged_at
  * @property numeric-string $commission_rate
  * @property numeric-string $commission_amount
  * @property numeric-string $inspection_fee
@@ -47,6 +49,9 @@ class Order extends Model
         'type',
         'scheduled_at',
         'arrived_at',
+        'parts_waiting_until',
+        'parts_overdue_flagged_at',
+        'parts_note',
         'status',
         'dispute_deadline_at',
         'warranty_until',
@@ -68,6 +73,8 @@ class Order extends Model
             'lng' => 'decimal:7',
             'scheduled_at' => 'datetime',
             'arrived_at' => 'datetime',
+            'parts_waiting_until' => 'datetime',
+            'parts_overdue_flagged_at' => 'datetime',
             'closure_code' => 'encrypted', // verified server-side only (SRS note 4)
             'closure_expires_at' => 'datetime',
             'closure_verified_at' => 'datetime',

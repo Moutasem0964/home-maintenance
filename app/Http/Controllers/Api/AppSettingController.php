@@ -28,6 +28,7 @@ class AppSettingController extends Controller
         'min_withdrawal_amount',
         'scheduled_max_days',
         'arrival_radius_meters',
+        'parts_wait_max_hours',
     ];
 
     public function index(): JsonResponse
