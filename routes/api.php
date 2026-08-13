@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\AdminNoShowController;
 use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AdminTechnicianFlagController;
 use App\Http\Controllers\Api\AppSettingController;
@@ -91,6 +92,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('admin/technicians/{technician}/approve', [AdminTechnicianController::class, 'approve']);
     Route::post('admin/technicians/{technician}/suspend', [AdminTechnicianController::class, 'suspend']);
     Route::post('admin/technicians/{technician}/ban', [AdminTechnicianController::class, 'ban']);
+
+    Route::post('admin/orders/{order}/no-show/resolve', [AdminNoShowController::class, 'resolve']);
 
     Route::get('admin/technician-flags', [AdminTechnicianFlagController::class, 'index']);
     Route::post('admin/technician-flags/{flag}/review', [AdminTechnicianFlagController::class, 'review']);

@@ -4,10 +4,14 @@ namespace App\Services;
 
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
+use App\Enums\TechnicianFlagOutcome;
 use App\Enums\TechnicianFlagReason;
+use App\Enums\TechnicianFlagStatus;
 use App\Models\AppSetting;
 use App\Models\Order;
 use App\Models\OrderEvent;
+use App\Models\TechnicianFlag;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class CancellationService
@@ -132,6 +136,13 @@ class CancellationService
      * Client reports the technician never arrived: the inspection fee is refunded in
      * full and the order closes as a no-show.
      */
+    /**
+     * The client reports a suspected technician no-show. Redesigned: the system does NOT
+     * act — no refund, no status change, the inspection fee stays held. It only raises a
+     * flag for admin observation (one open report per order). An admin then confirms or
+     * dismisses via resolveTechnicianNoShow(); the tech's geofenced arrived_at is available
+     * to the admin as evidence.
+     */
     public function technicianNoShow(Order $order): Order
     {
         return DB::transaction(function () use ($order): Order {
@@ -142,18 +153,66 @@ class CancellationService
                 throw new \DomainException('A no-show can only be reported for an accepted, un-started job.');
             }
 
-            $technicianId = $locked->technician_id;
-
-            $this->escrowService->refundOrder($locked, "noshow:tech:{$locked->id}");
-            $locked->update(['status' => OrderStatus::NoShow]);
-            OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
-
-            // Flag the no-show for admin assessment (no auto-sanction).
-            if ($technicianId !== null) {
-                $this->flagService->raise($technicianId, TechnicianFlagReason::NoShow, $locked->id);
+            if ($locked->technician_id === null) {
+                throw new \DomainException('This order has no technician to report.');
             }
+
+            if ($this->openNoShowFlag($locked) !== null) {
+                throw new \DomainException('A no-show report is already under review for this order.');
+            }
+
+            $this->flagService->raise($locked->technician_id, TechnicianFlagReason::NoShow, $locked->id);
+            OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShowReported]);
 
             return $locked;
         });
+    }
+
+    /**
+     * An admin resolves a reported no-show. Dismissed → nothing moves, the order carries on
+     * (miscommunication / the tech was just late). Confirmed → the client is refunded in full,
+     * the order closes as no_show, any booked slot is freed, and the flag is upheld as a record
+     * against the technician (a separate suspend/ban stays the admin's call).
+     */
+    public function resolveTechnicianNoShow(Order $order, User $admin, bool $confirmed, ?string $note): Order
+    {
+        return DB::transaction(function () use ($order, $admin, $confirmed, $note): Order {
+            /** @var Order $locked */
+            $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            $flag = $this->openNoShowFlag($locked);
+            if ($flag === null) {
+                throw new \DomainException('There is no open no-show report to resolve for this order.');
+            }
+
+            if ($confirmed) {
+                if ($locked->status !== OrderStatus::Accepted) {
+                    throw new \DomainException('This order can no longer be closed as a no-show.');
+                }
+
+                $this->escrowService->refundOrder($locked, "noshow:confirm:{$locked->id}");
+                $this->schedulingService->cancelFor($locked);
+                $locked->update(['status' => OrderStatus::NoShow]);
+                OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
+            }
+
+            $this->flagService->resolve(
+                $flag,
+                $admin,
+                $confirmed ? TechnicianFlagOutcome::Upheld : TechnicianFlagOutcome::Dismissed,
+                $note,
+            );
+
+            return $locked;
+        });
+    }
+
+    private function openNoShowFlag(Order $order): ?TechnicianFlag
+    {
+        return TechnicianFlag::query()
+            ->where('order_id', $order->id)
+            ->where('reason', TechnicianFlagReason::NoShow)
+            ->where('status', TechnicianFlagStatus::Open)
+            ->first();
     }
 }
