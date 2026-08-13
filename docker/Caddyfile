@@ -1,5 +1,16 @@
 home-maintenance.me {
-    reverse_proxy app:80
+    # Password-protect the Scramble API docs for the frontend team (edge basic-auth).
+    # User: frontend  ·  change the hash with:  docker compose exec caddy caddy hash-password --plaintext 'NEWPASS'
+    handle /docs/* {
+        basic_auth {
+            frontend $2y$14$rSd0uP5FR0Ku8gGV0sbRoeiCd7jfCuCpl6Ju7eMi3Qthhbe5E9Ka2
+        }
+        reverse_proxy app:80
+    }
+
+    handle {
+        reverse_proxy app:80
+    }
 }
 
 www.home-maintenance.me {
