@@ -31,6 +31,7 @@ enum OrderEventType: string
     case Refunded = 'refunded';
     case Canceled = 'canceled';
     case Expired = 'expired';
+    case NoShowReported = 'no_show_reported'; // client reported a suspected tech no-show (awaiting admin)
     case NoShow = 'no_show';
     case TechnicianWithdrew = 'technician_withdrew'; // decline-after-accept → re-dispatch
     case WarrantyClaimed = 'warranty_claimed';       // client files a warranty visit → child order

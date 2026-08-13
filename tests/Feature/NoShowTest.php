@@ -81,18 +81,79 @@ class NoShowTest extends TestCase
             ->postJson("/api/orders/{$order->id}/no-show/client")->assertStatus(409);
     }
 
-    // ---------- technician no-show (client reports) ----------
+    // ---------- technician no-show (client reports → admin resolves) ----------
 
-    public function test_technician_no_show_refunds_the_client(): void
+    public function test_client_reporting_a_tech_no_show_raises_a_flag_without_acting(): void
     {
-        [$order, $client] = $this->acceptedOrder();
+        [$order, $client, $tech] = $this->acceptedOrder();
 
         $this->actingAs($client, 'sanctum')
             ->postJson("/api/orders/{$order->id}/no-show/technician")->assertOk();
 
-        $this->assertSame(OrderStatus::NoShow, $order->refresh()->status);
-        $this->assertSame(500.0, (float) $client->wallet()->firstOrFail()->available_balance);
+        // No refund, no status change — the money stays held, the order is still accepted.
+        $order->refresh();
+        $this->assertSame(OrderStatus::Accepted, $order->status);
+        $this->assertSame(450.0, (float) $client->wallet()->firstOrFail()->available_balance); // 500 − 50 held
+        $this->assertDatabaseHas('technician_flags', [
+            'technician_id' => $tech->id, 'order_id' => $order->id, 'reason' => 'no_show', 'status' => 'open',
+        ]);
+    }
+
+    public function test_a_second_no_show_report_is_blocked(): void
+    {
+        [$order, $client] = $this->acceptedOrder();
+
+        $this->actingAs($client, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/technician")->assertOk();
+        $this->actingAs($client, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/technician")->assertStatus(409);
+    }
+
+    public function test_admin_confirms_a_no_show_refunding_the_client(): void
+    {
+        [$order, $client] = $this->acceptedOrder();
+        $this->actingAs($client, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/technician")->assertOk();
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/orders/{$order->id}/no-show/resolve", ['outcome' => 'confirmed'])->assertOk();
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::NoShow, $order->status);
+        $this->assertSame(500.0, (float) $client->wallet()->firstOrFail()->available_balance); // refunded
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'refunded']);
+        $this->assertDatabaseHas('technician_flags', ['order_id' => $order->id, 'status' => 'reviewed', 'outcome' => 'upheld']);
+    }
+
+    public function test_admin_dismisses_a_no_show_leaving_the_order_untouched(): void
+    {
+        [$order, $client] = $this->acceptedOrder();
+        $this->actingAs($client, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/technician")->assertOk();
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/orders/{$order->id}/no-show/resolve", ['outcome' => 'dismissed'])->assertOk();
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::Accepted, $order->status); // carries on
+        $this->assertSame(450.0, (float) $client->wallet()->firstOrFail()->available_balance); // no refund
+        $this->assertDatabaseHas('technician_flags', ['order_id' => $order->id, 'status' => 'reviewed', 'outcome' => 'dismissed']);
+    }
+
+    public function test_only_an_admin_can_resolve_a_no_show(): void
+    {
+        [$order, $client] = $this->acceptedOrder();
+        $this->actingAs($client, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/technician")->assertOk();
+
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/admin/orders/{$order->id}/no-show/resolve", ['outcome' => 'confirmed'])->assertForbidden();
+    }
+
+    public function test_resolving_without_an_open_report_is_rejected(): void
+    {
+        [$order] = $this->acceptedOrder();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/orders/{$order->id}/no-show/resolve", ['outcome' => 'confirmed'])->assertStatus(409);
     }
 
     public function test_only_the_client_can_report_a_technician_no_show(): void

@@ -781,7 +781,21 @@
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/technician", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "no-show", "technician"] },
-            "description": "Client reports the technician never arrived. Order -> no_show; the inspection fee is refunded in full to the client."
+            "description": "Client reports a suspected technician no-show (order must be accepted). The system does NOT act — no refund, no status change. It raises a flag for admin review; an admin then resolves it. One open report per order."
+          }
+        },
+        {
+          "name": "Resolve No-show (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"outcome\": \"confirmed\",\n  \"note\": \"Tech confirmed no-show after phone contact\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/admin/orders/{{order_id}}/no-show/resolve", "host": ["{{base_url}}"], "path": ["api", "admin", "orders", "{{order_id}}", "no-show", "resolve"] },
+            "description": "Admin resolves a reported no-show. outcome=dismissed → nothing moves, the order carries on. outcome=confirmed → the client is refunded in full, the order closes as no_show, and the flag is upheld as a record against the technician."
           }
         }
       ]

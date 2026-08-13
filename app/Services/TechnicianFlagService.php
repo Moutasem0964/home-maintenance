@@ -30,6 +30,18 @@ class TechnicianFlagService
     }
 
     /** Close out a technician's open flags with an explicit outcome — used when an admin suspends/bans them. */
+    /** Resolve a single flag with the admin's decision. */
+    public function resolve(TechnicianFlag $flag, User $admin, TechnicianFlagOutcome $outcome, ?string $note = null): void
+    {
+        $flag->update([
+            'status' => TechnicianFlagStatus::Reviewed,
+            'outcome' => $outcome,
+            'reviewed_by' => $admin->id,
+            'reviewed_at' => now(),
+            'note' => $note,
+        ]);
+    }
+
     public function resolveOpenFor(int $technicianId, User $admin, TechnicianFlagOutcome $outcome, ?string $note = null): int
     {
         return TechnicianFlag::where('technician_id', $technicianId)
