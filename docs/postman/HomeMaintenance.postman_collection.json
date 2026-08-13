@@ -574,6 +574,48 @@
       ]
     },
     {
+      "name": "Order Lifecycle (technician)",
+      "item": [
+        {
+          "name": "Mark Arrival (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"lat\": 33.5,\n  \"lng\": 36.3\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/arrive", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "arrive"] },
+            "description": "Assigned technician marks on-site arrival. The server verifies the GPS is within arrival_radius_meters (default 50m) of the order location; 422 if out of range. Required before a quote can be sent."
+          }
+        },
+        {
+          "name": "Waiting for Parts (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"note\": \"Ordering a compressor, ~2 days\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/waiting-for-parts", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "waiting-for-parts"] },
+            "description": "Assigned technician pauses an in-progress order to source a part (in_progress -> waiting_for_parts). Stamps a deadline (parts_wait_max_hours, default 72h); an overdue wait is flagged for admin review. The order stays assigned."
+          }
+        },
+        {
+          "name": "Resume from Parts (technician)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/resume", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "resume"] },
+            "description": "Assigned technician returns with the part and resumes the job (waiting_for_parts -> in_progress)."
+          }
+        }
+      ]
+    },
+    {
       "name": "Closure",
       "item": [
         {

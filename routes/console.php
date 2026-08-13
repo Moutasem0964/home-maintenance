@@ -27,4 +27,7 @@ Schedule::command('appointments:activate-due')->everyMinute();
 // Remind clients/technicians of appointments starting within the lead window (UC-26).
 Schedule::command('appointments:remind')->everyFiveMinutes();
 
+// Flag orders stuck waiting for parts past the max window for admin review.
+Schedule::command('parts:flag-overdue')->hourly();
+
 Schedule::command('telescope:prune --hours=24')->daily();
