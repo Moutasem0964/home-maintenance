@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\DisputeReason;
 use App\Enums\DisputeResolution;
+use App\Enums\NotificationCategory;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dispute\RaiseDisputeRequest;
@@ -13,6 +14,7 @@ use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\DisputeService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -33,7 +35,7 @@ class DisputeController extends Controller
     }
 
     /** Client raises a dispute on their own completed order during the dispute window. */
-    public function store(RaiseDisputeRequest $request, int $order, DisputeService $disputeService): DisputeResource
+    public function store(RaiseDisputeRequest $request, int $order, DisputeService $disputeService, NotificationService $notificationService): DisputeResource
     {
         $orderModel = Order::findOrFail($order);
 
@@ -54,11 +56,21 @@ class DisputeController extends Controller
             abort(409, $e->getMessage());
         }
 
+        if ($orderModel->technician_id !== null) {
+            $notificationService->notify(
+                $orderModel->technician->user,
+                NotificationCategory::Orders,
+                'نزاع على طلبك',
+                'فتح العميل نزاعاً على أحد طلباتك — قيد مراجعة الإدارة.',
+                $orderModel,
+            );
+        }
+
         return new DisputeResource($dispute);
     }
 
     /** Admin resolves the dispute and routes the escrow money accordingly. */
-    public function resolve(ResolveDisputeRequest $request, int $dispute, DisputeService $disputeService): DisputeResource
+    public function resolve(ResolveDisputeRequest $request, int $dispute, DisputeService $disputeService, NotificationService $notificationService): DisputeResource
     {
         /** @var User $user */
         $user = $request->user();
@@ -76,6 +88,13 @@ class DisputeController extends Controller
             );
         } catch (\DomainException $e) {
             abort(422, $e->getMessage());
+        }
+
+        /** @var Order $order */
+        $order = $resolved->order()->firstOrFail();
+        $notificationService->notify($order->client, NotificationCategory::Orders, 'تم حسم النزاع', 'اتخذ المشرف قراراً بشأن النزاع على طلبك.', $order);
+        if ($order->technician_id !== null) {
+            $notificationService->notify($order->technician->user, NotificationCategory::Orders, 'تم حسم النزاع', 'اتخذ المشرف قراراً بشأن النزاع على أحد طلباتك.', $order);
         }
 
         return new DisputeResource($resolved);

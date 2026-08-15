@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\DispatchOfferStatus;
+use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
@@ -22,6 +23,7 @@ class AssignmentService
     public function __construct(
         private readonly SchedulingService $schedulingService,
         private readonly EscrowService $escrowService,
+        private readonly NotificationService $notificationService,
     ) {}
 
     /**
@@ -94,6 +96,8 @@ class AssignmentService
 
         OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::Dispatched]);
 
+        $this->notifyOfferedTechnician($order, $technician);
+
         return $offer;
     }
 
@@ -111,7 +115,21 @@ class AssignmentService
 
         OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::Dispatched]);
 
+        $this->notifyOfferedTechnician($order, $technician);
+
         return $offer;
+    }
+
+    /** Push a new-offer alert to the technician who was just offered the order. */
+    private function notifyOfferedTechnician(Order $order, Technician $technician): void
+    {
+        $this->notificationService->notify(
+            $technician->user,
+            NotificationCategory::Orders,
+            'طلب صيانة جديد',
+            'لديك عرض طلب جديد — أمامك مهلة قصيرة للرد.',
+            $order,
+        );
     }
 
     /**
