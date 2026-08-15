@@ -236,7 +236,7 @@
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"] },
-            "description": "PLANNED — not implemented yet. Returns active service categories (electric, plumbing, AC, appliances)."
+            "description": "Public (no auth) — powers the guest home screen. Returns active top-level service categories, each with active children nested. Every category includes icon_url (an Iconify Material Design SVG, e.g. https://api.iconify.design/mdi/flash.svg) and guide_price."
           }
         }
       ]

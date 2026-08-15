@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ServiceCategory;
+use Database\Seeders\ServiceCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,6 +14,23 @@ class CategoryTest extends TestCase
     public function test_endpoint_is_public(): void
     {
         $this->getJson('/api/categories')->assertOk();
+    }
+
+    public function test_seeded_categories_expose_meaningful_icon_urls(): void
+    {
+        $this->seed(ServiceCategorySeeder::class);
+
+        $response = $this->getJson('/api/categories')->assertOk();
+
+        // Every parent and child carries a real Iconify SVG url, never null.
+        foreach ($response->json('data') as $parent) {
+            $this->assertStringStartsWith('https://api.iconify.design/mdi/', $parent['icon_url']);
+            $this->assertStringEndsWith('.svg', $parent['icon_url']);
+
+            foreach ($parent['children'] as $child) {
+                $this->assertStringStartsWith('https://api.iconify.design/mdi/', $child['icon_url']);
+            }
+        }
     }
 
     public function test_lists_active_top_level_categories(): void
