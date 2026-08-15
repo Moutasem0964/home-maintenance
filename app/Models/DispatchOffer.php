@@ -14,18 +14,20 @@ use Illuminate\Support\Carbon;
  * conditional state transition on the orders row (AssignmentService).
  *
  * @property DispatchOfferStatus $status
+ * @property int $attempts
  * @property Carbon $expires_at
  */
 class DispatchOffer extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['order_id', 'technician_id', 'status', 'decline_reason', 'offered_at', 'responded_at', 'expires_at'];
+    protected $fillable = ['order_id', 'technician_id', 'status', 'attempts', 'decline_reason', 'offered_at', 'responded_at', 'expires_at'];
 
     protected function casts(): array
     {
         return [
             'status' => DispatchOfferStatus::class,
+            'attempts' => 'integer',
             'offered_at' => 'datetime',
             'responded_at' => 'datetime',
             'expires_at' => 'datetime',

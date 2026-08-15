@@ -21,6 +21,7 @@ class AssignmentService
 {
     public function __construct(
         private readonly SchedulingService $schedulingService,
+        private readonly EscrowService $escrowService,
     ) {}
 
     /**
@@ -34,11 +35,71 @@ class AssignmentService
             return null;
         }
 
-        $technician = $this->nextQualifiedTechnician($order);
+        // Fresh dispatch: exclude everyone already offered this order (any status).
+        $exclude = $order->dispatchOffers()->pluck('technician_id')->all();
+
+        $technician = $this->nextQualifiedTechnician($order, $exclude);
         if ($technician === null) {
             return null;
         }
 
+        return $this->createOffer($order, $technician);
+    }
+
+    /**
+     * Fallback used by the retry loop once no fresh technician is left: re-offer
+     * the order to a technician who TIMED OUT on a previous offer (an expired
+     * offer is "I missed it", not "no"). Never touches technicians who explicitly
+     * declined, who currently hold a live offer, or who have already been offered
+     * this order `max_dispatch_attempts` times. Returns the new offer, or null.
+     */
+    public function reofferTimedOut(Order $order): ?DispatchOffer
+    {
+        if ($order->status !== OrderStatus::Pending) {
+            return null;
+        }
+
+        $cap = (int) AppSetting::get('max_dispatch_attempts', 3);
+
+        // Candidates: technicians whose offer for this order timed out and who are
+        // still under the attempt cap. A declined (Rejected) offer is excluded by
+        // status; the unique (order, tech) index means each has exactly one row.
+        $candidateIds = $order->dispatchOffers()
+            ->where('status', DispatchOfferStatus::Expired)
+            ->where('attempts', '<', $cap)
+            ->pluck('technician_id')
+            ->all();
+
+        if ($candidateIds === []) {
+            return null;
+        }
+
+        // Only re-offer one who still qualifies right now (online, in range, free).
+        $technician = $this->nextQualifiedTechnician($order, [], $candidateIds);
+        if ($technician === null) {
+            return null;
+        }
+
+        // Reuse the existing row (the unique index forbids a second), bumping the
+        // attempt counter and reopening the offer window.
+        /** @var DispatchOffer $offer */
+        $offer = $order->dispatchOffers()->where('technician_id', $technician->id)->firstOrFail();
+        $offer->update([
+            'status' => DispatchOfferStatus::Offered,
+            'attempts' => $offer->attempts + 1,
+            'offered_at' => now(),
+            'responded_at' => null,
+            'expires_at' => now()->addSeconds((int) AppSetting::get('offer_timeout_seconds', 90)),
+        ]);
+
+        OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::Dispatched]);
+
+        return $offer;
+    }
+
+    /** Persist an offer to $technician for $order and record the dispatch event. */
+    private function createOffer(Order $order, Technician $technician): DispatchOffer
+    {
         /** @var DispatchOffer $offer */
         $offer = DispatchOffer::create([
             'order_id' => $order->id,
@@ -53,16 +114,27 @@ class AssignmentService
         return $offer;
     }
 
-    /** Pick the next technician to offer, by the rule appropriate to the order type. */
-    private function nextQualifiedTechnician(Order $order): ?Technician
+    /**
+     * Pick the next technician to offer, by the rule appropriate to the order type.
+     *
+     * @param  array<int, int>  $exclude  technician ids that must not be offered
+     * @param  array<int, int>|null  $only  if set, restrict candidates to these ids
+     */
+    private function nextQualifiedTechnician(Order $order, array $exclude, ?array $only = null): ?Technician
     {
         return $order->type === OrderType::Scheduled
-            ? $this->nextForScheduled($order)
-            : $this->nextForUrgent($order);
+            ? $this->nextForScheduled($order, $exclude, $only)
+            : $this->nextForUrgent($order, $exclude, $only);
     }
 
-    /** Nearest active+available technician who serves the category and hasn't been offered this order yet. */
-    private function nextForUrgent(Order $order): ?Technician
+    /**
+     * Nearest active+available technician who serves the category, excluding
+     * $exclude (and, when $only is given, restricted to that set).
+     *
+     * @param  array<int, int>  $exclude
+     * @param  array<int, int>|null  $only
+     */
+    private function nextForUrgent(Order $order, array $exclude, ?array $only = null): ?Technician
     {
         /** @var Technician|null $technician */
         $technician = Technician::query()
@@ -70,7 +142,8 @@ class AssignmentService
             ->where('is_available', true)
             ->whereNotNull('current_lat')
             ->whereNotNull('current_lng')
-            ->whereNotIn('id', $order->dispatchOffers()->pluck('technician_id'))
+            ->whereNotIn('id', $exclude)
+            ->when($only !== null, fn (Builder $query) => $query->whereIn('id', $only))
             ->whereRelation('services', 'service_categories.id', $order->service_category_id)
             ->orderByRaw(
                 '(current_lat - ?) * (current_lat - ?) + (current_lng - ?) * (current_lng - ?)',
@@ -85,8 +158,11 @@ class AssignmentService
      * For a scheduled order, current availability/location is irrelevant — what
      * matters is whether the technician's calendar is free at the requested time.
      * Offer to a qualified tech with no appointment overlapping the booked window.
+     *
+     * @param  array<int, int>  $exclude
+     * @param  array<int, int>|null  $only
      */
-    private function nextForScheduled(Order $order): ?Technician
+    private function nextForScheduled(Order $order, array $exclude, ?array $only = null): ?Technician
     {
         $start = $order->scheduled_at;
         if ($start === null) {
@@ -97,7 +173,8 @@ class AssignmentService
         /** @var Technician|null $technician */
         $technician = Technician::query()
             ->whereIn('status', [TechnicianStatus::Active, TechnicianStatus::Probation])
-            ->whereNotIn('id', $order->dispatchOffers()->pluck('technician_id'))
+            ->whereNotIn('id', $exclude)
+            ->when($only !== null, fn (Builder $query) => $query->whereIn('id', $only))
             ->whereRelation('services', 'service_categories.id', $order->service_category_id)
             ->whereDoesntHave('appointments', function (Builder $query) use ($start, $end) {
                 $query->whereIn('status', [AppointmentStatus::Confirmed, AppointmentStatus::Activated])
@@ -222,6 +299,116 @@ class AssignmentService
                 OrderEvent::create(['order_id' => $locked->order_id, 'event_type' => OrderEventType::OfferExpired]);
 
                 $this->offerToNext($order);
+
+                return true;
+            });
+
+            if ($wasExpired) {
+                $expired++;
+            }
+        }
+
+        return $expired;
+    }
+
+    /**
+     * Safety-net re-dispatch: any order still Pending with NO live offer (nobody
+     * was available when it was created, or every offer expired with no next
+     * technician at the time) gets re-offered to the next qualified technician.
+     * expireStaleOffers only advances orders that HAD a live offer; this covers
+     * the ones it can't see. Returns how many orders were freshly offered.
+     */
+    public function retryPending(): int
+    {
+        $stuck = Order::query()
+            ->where('status', OrderStatus::Pending)
+            ->whereDoesntHave('dispatchOffers', function (Builder $query) {
+                $query->where('status', DispatchOfferStatus::Offered)
+                    ->where('expires_at', '>', now());
+            })
+            ->lazyById(200);
+
+        $offered = 0;
+
+        foreach ($stuck as $order) {
+            $madeOffer = DB::transaction(function () use ($order): bool {
+                /** @var Order $locked */
+                $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+                if ($locked->status !== OrderStatus::Pending) {
+                    return false;
+                }
+
+                // A live offer may have appeared since the batch was read.
+                $hasLiveOffer = $locked->dispatchOffers()
+                    ->where('status', DispatchOfferStatus::Offered)
+                    ->where('expires_at', '>', now())
+                    ->exists();
+                if ($hasLiveOffer) {
+                    return false;
+                }
+
+                // Prefer a fresh technician; if none are left, reach back to one
+                // who timed out on an earlier offer (never a decliner).
+                $offer = $this->offerToNext($locked) ?? $this->reofferTimedOut($locked);
+
+                return $offer !== null;
+            });
+
+            if ($madeOffer) {
+                $offered++;
+            }
+        }
+
+        return $offered;
+    }
+
+    /**
+     * Give up on orders that have sat Pending too long: refund the client's
+     * inspection hold, close any open offers, and mark the order Expired. An
+     * urgent order expires `pending_expiry_minutes` after creation; a scheduled
+     * order expires once its appointment time passes with nobody having accepted
+     * it. Returns how many orders were expired.
+     */
+    public function expireStalePending(): int
+    {
+        $cutoff = now()->subMinutes((int) AppSetting::get('pending_expiry_minutes', 10));
+
+        $stale = Order::query()
+            ->where('status', OrderStatus::Pending)
+            ->where(function (Builder $query) use ($cutoff) {
+                $query->where(function (Builder $urgent) use ($cutoff) {
+                    $urgent->where('type', OrderType::Urgent)
+                        ->where('created_at', '<', $cutoff);
+                })->orWhere(function (Builder $scheduled) {
+                    $scheduled->where('type', OrderType::Scheduled)
+                        ->whereNotNull('scheduled_at')
+                        ->where('scheduled_at', '<', now());
+                });
+            })
+            ->lazyById(200);
+
+        $expired = 0;
+
+        foreach ($stale as $order) {
+            $wasExpired = DB::transaction(function () use ($order): bool {
+                /** @var Order $locked */
+                $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+                if ($locked->status !== OrderStatus::Pending) {
+                    return false;
+                }
+
+                // Return the inspection fee we held at creation.
+                $this->escrowService->refundOrder($locked, "expire:order:{$locked->id}");
+
+                $locked->dispatchOffers()
+                    ->where('status', DispatchOfferStatus::Offered)
+                    ->update(['status' => DispatchOfferStatus::Expired]);
+
+                $locked->update(['status' => OrderStatus::Expired]);
+
+                OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::Expired]);
 
                 return true;
             });
