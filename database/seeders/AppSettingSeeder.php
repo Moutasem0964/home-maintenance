@@ -33,6 +33,8 @@ class AppSettingSeeder extends Seeder
             ['key' => 'arrival_radius_meters',    'value' => '50',   'data_type' => 'int',     'description' => 'Max distance (m) from the order location for a technician to mark arrival'],
             ['key' => 'scheduled_max_days',       'value' => '10',   'data_type' => 'int',     'description' => 'Max days ahead a scheduled order appointment may be booked'],
             ['key' => 'parts_wait_max_hours',     'value' => '72',   'data_type' => 'int',     'description' => 'Hours a technician may pause an order waiting for parts before it is flagged for admin review'],
+            ['key' => 'pending_expiry_minutes',   'value' => '10',   'data_type' => 'int',     'description' => 'Minutes an urgent order may sit pending (nobody accepted) before it expires and the inspection hold is refunded; a scheduled order expires once its appointment time passes unaccepted'],
+            ['key' => 'max_dispatch_attempts',    'value' => '3',    'data_type' => 'int',     'description' => 'Max times a technician may be offered the same order; the retry loop re-offers timed-out (not declined) technicians up to this cap'],
         ];
 
         foreach ($settings as $setting) {

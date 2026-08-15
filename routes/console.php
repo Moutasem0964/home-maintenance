@@ -11,6 +11,14 @@ Artisan::command('inspire', function () {
 // Move timed-out dispatch offers on to the next technician (~every minute via the scheduler container).
 Schedule::command('dispatch:expire-offers')->everyMinute();
 
+// Safety net: re-offer any order still pending with no live offer (nobody was
+// available at creation, or an offer expired with no next tech at the time).
+Schedule::command('dispatch:retry-pending')->everyMinute();
+
+// Give up on orders that sat pending too long — refund the inspection hold and expire them.
+// Runs every minute so a short (minutes-scale) timeout fires close to on time.
+Schedule::command('orders:expire-pending')->everyMinute();
+
 // Expire unanswered quotes past their deadline (24h window, so hourly is plenty).
 Schedule::command('quotes:expire')->hourly();
 
