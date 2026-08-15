@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\NotificationCategory;
 use App\Enums\OrderPhotoKind;
 use App\Enums\OrderStatus;
 use App\Exceptions\ClosureCodeException;
@@ -12,6 +13,7 @@ use App\Models\Order;
 use App\Models\Technician;
 use App\Models\User;
 use App\Services\ClosureService;
+use App\Services\NotificationService;
 use App\Services\OrderPhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +25,7 @@ class ClosureController extends Controller
      * (kept as dispute evidence); the server then mints a code for the client. Photos
      * are validated AFTER the auth + status checks so those take precedence.
      */
-    public function requestCode(Request $request, int $order, ClosureService $closureService, OrderPhotoService $photoService): JsonResponse
+    public function requestCode(Request $request, int $order, ClosureService $closureService, OrderPhotoService $photoService, NotificationService $notificationService): JsonResponse
     {
         $orderModel = Order::findOrFail($order);
         $this->assertAssignedTechnician($request, $orderModel);
@@ -39,6 +41,14 @@ class ClosureController extends Controller
         $photoService->store($orderModel, $request->file('photos'), OrderPhotoKind::Closure, $user->id);
 
         $closureService->generate($orderModel);
+
+        $notificationService->notify(
+            $orderModel->client,
+            NotificationCategory::Orders,
+            'الطلب جاهز للإغلاق',
+            'أنهى الفني العمل — شارك رمز الإغلاق معه لإتمام الدفع.',
+            $orderModel,
+        );
 
         return response()->json([
             'message' => 'A closure code is now available to the client.',
@@ -65,13 +75,30 @@ class ClosureController extends Controller
     }
 
     /** Assigned technician submits the code (obtained from the client) to complete the job. */
-    public function verify(VerifyClosureRequest $request, int $order, ClosureService $closureService): OrderResource
+    public function verify(VerifyClosureRequest $request, int $order, ClosureService $closureService, NotificationService $notificationService): OrderResource
     {
         $orderModel = Order::findOrFail($order);
         $this->assertAssignedTechnician($request, $orderModel);
 
         try {
-            return new OrderResource($closureService->verify($orderModel, (string) $request->validated('code')));
+            $completed = $closureService->verify($orderModel, (string) $request->validated('code'));
+
+            $notificationService->notify(
+                $completed->client,
+                NotificationCategory::Orders,
+                'اكتمل طلبك',
+                'تم إغلاق الطلب بنجاح.',
+                $completed,
+            );
+            $notificationService->notify(
+                $completed->technician->user,
+                NotificationCategory::Orders,
+                'اكتمل الطلب',
+                'تم إغلاق الطلب — ستُحرّر مستحقاتك بعد انتهاء فترة الاعتراض.',
+                $completed,
+            );
+
+            return new OrderResource($completed);
         } catch (ClosureCodeException $e) {
             abort(422, $e->getMessage());
         } catch (\DomainException $e) {

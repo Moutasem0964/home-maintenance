@@ -99,4 +99,23 @@ class NotificationServiceTest extends TestCase
             'notifiable_id' => $order->id,
         ]);
     }
+
+    public function test_offering_an_order_notifies_the_technician(): void
+    {
+        $category = ServiceCategory::factory()->create();
+        $order = Order::factory()->create([
+            'service_category_id' => $category->id, 'lat' => 33.5, 'lng' => 36.3, 'status' => OrderStatus::Pending,
+        ]);
+        $tech = Technician::factory()->available()->create(['current_lat' => 33.5, 'current_lng' => 36.3]);
+        $tech->services()->attach($category->id);
+
+        app(AssignmentService::class)->offerToNext($order);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $tech->user_id,
+            'category' => 'orders',
+            'notifiable_type' => Order::class,
+            'notifiable_id' => $order->id,
+        ]);
+    }
 }

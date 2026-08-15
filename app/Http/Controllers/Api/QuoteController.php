@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\NotificationCategory;
 use App\Enums\OrderStatus;
 use App\Enums\QuoteStatus;
 use App\Exceptions\InsufficientBalanceException;
@@ -13,6 +14,7 @@ use App\Models\Order;
 use App\Models\Quote;
 use App\Models\Technician;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\QuoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +31,7 @@ class QuoteController extends Controller
         return QuoteResource::collection($orderModel->quotes()->with('parts')->latest()->get());
     }
 
-    public function store(StoreQuoteRequest $request, int $order, QuoteService $quoteService): JsonResponse
+    public function store(StoreQuoteRequest $request, int $order, QuoteService $quoteService, NotificationService $notificationService): JsonResponse
     {
         $orderModel = Order::findOrFail($order);
 
@@ -45,16 +47,34 @@ class QuoteController extends Controller
 
         $quote = $quoteService->createInitialQuote($orderModel, $request->validated());
 
+        $notificationService->notify(
+            $orderModel->client,
+            NotificationCategory::Orders,
+            'وصل عرض السعر',
+            'أرسل الفني عرض سعر لطلبك — راجعه للموافقة أو الرفض.',
+            $orderModel,
+        );
+
         return (new QuoteResource($quote->load('parts')))->response()->setStatusCode(201);
     }
 
-    public function approve(Request $request, int $quote, QuoteService $quoteService): OrderResource
+    public function approve(Request $request, int $quote, QuoteService $quoteService, NotificationService $notificationService): OrderResource
     {
         $quoteModel = Quote::findOrFail($quote);
         $this->assertClient($request, $quoteModel);
 
         try {
-            return new OrderResource($quoteService->approve($quoteModel));
+            $order = $quoteService->approve($quoteModel);
+
+            $notificationService->notify(
+                $order->technician->user,
+                NotificationCategory::Orders,
+                'تمت الموافقة على العرض',
+                'وافق العميل على عرض السعر — يمكنك بدء العمل.',
+                $order,
+            );
+
+            return new OrderResource($order);
         } catch (InsufficientBalanceException) {
             throw ValidationException::withMessages(['repair' => 'Insufficient wallet balance to hold the repair fee.']);
         } catch (\DomainException $e) {
@@ -62,13 +82,23 @@ class QuoteController extends Controller
         }
     }
 
-    public function reject(Request $request, int $quote, QuoteService $quoteService): OrderResource
+    public function reject(Request $request, int $quote, QuoteService $quoteService, NotificationService $notificationService): OrderResource
     {
         $quoteModel = Quote::findOrFail($quote);
         $this->assertClient($request, $quoteModel);
 
         try {
-            return new OrderResource($quoteService->reject($quoteModel));
+            $order = $quoteService->reject($quoteModel);
+
+            $notificationService->notify(
+                $order->technician->user,
+                NotificationCategory::Orders,
+                'تم رفض العرض',
+                'رفض العميل عرض السعر.',
+                $order,
+            );
+
+            return new OrderResource($order);
         } catch (\DomainException $e) {
             abort(409, $e->getMessage());
         }
