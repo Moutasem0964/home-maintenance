@@ -110,9 +110,11 @@ class CancellationService
     }
 
     /**
-     * Technician reports the client was absent on-site: the inspection fee is released
-     * to the technician as compensation for the wasted trip, and the order closes as
-     * a no-show.
+     * Technician reports the client was absent on-site. Mirrors the technician no-show flow:
+     * the system does NOT pay out — the inspection fee stays held and a claim is raised for
+     * admin review (one open claim per order). An admin then confirms (releasing the fee to
+     * the technician) or dismisses (the order carries on) via resolveNoShow(). The tech's
+     * geofenced arrived_at is available to the admin as evidence.
      */
     public function clientNoShow(Order $order): Order
     {
@@ -124,9 +126,16 @@ class CancellationService
                 throw new \DomainException('A no-show can only be reported once the technician is on-site.');
             }
 
-            $locked->update(['status' => OrderStatus::NoShow]);
-            $this->escrowService->releaseFunds($locked, "noshow:client:{$locked->id}");
-            OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
+            if ($locked->technician_id === null) {
+                throw new \DomainException('This order has no technician to file a no-show claim.');
+            }
+
+            if ($this->openClientNoShowFlag($locked) !== null) {
+                throw new \DomainException('A client no-show report is already under review for this order.');
+            }
+
+            $this->flagService->raise($locked->technician_id, TechnicianFlagReason::ClientNoShow, $locked->id);
+            OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::ClientNoShowReported]);
 
             return $locked;
         });
@@ -169,18 +178,19 @@ class CancellationService
     }
 
     /**
-     * An admin resolves a reported no-show. Dismissed → nothing moves, the order carries on
-     * (miscommunication / the tech was just late). Confirmed → the client is refunded in full,
-     * the order closes as no_show, any booked slot is freed, and the flag is upheld as a record
-     * against the technician (a separate suspend/ban stays the admin's call).
+     * An admin resolves a reported no-show — from either party — routing by the open claim on
+     * the order. Dismissed → nothing moves, the order carries on. Confirmed → the money moves per
+     * the claim: a technician no-show refunds the client in full and frees any booked slot; a
+     * client no-show releases the full inspection fee to the technician (they made the trip).
+     * Either way the order closes as no_show and the flag is upheld as a record.
      */
-    public function resolveTechnicianNoShow(Order $order, User $admin, bool $confirmed, ?string $note): Order
+    public function resolveNoShow(Order $order, User $admin, bool $confirmed, ?string $note): Order
     {
         return DB::transaction(function () use ($order, $admin, $confirmed, $note): Order {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-            $flag = $this->openNoShowFlag($locked);
+            $flag = $this->openNoShowFlag($locked) ?? $this->openClientNoShowFlag($locked);
             if ($flag === null) {
                 throw new \DomainException('There is no open no-show report to resolve for this order.');
             }
@@ -190,9 +200,17 @@ class CancellationService
                     throw new \DomainException('This order can no longer be closed as a no-show.');
                 }
 
-                $this->escrowService->refundOrder($locked, "noshow:confirm:{$locked->id}");
-                $this->schedulingService->cancelFor($locked);
-                $locked->update(['status' => OrderStatus::NoShow]);
+                if ($flag->reason === TechnicianFlagReason::NoShow) {
+                    // Technician confirmed absent → refund the client in full, free any slot.
+                    $this->escrowService->refundOrder($locked, "noshow:confirm:{$locked->id}");
+                    $this->schedulingService->cancelFor($locked);
+                    $locked->update(['status' => OrderStatus::NoShow]);
+                } else {
+                    // Client confirmed absent → release the full inspection fee to the technician.
+                    $locked->update(['status' => OrderStatus::NoShow]);
+                    $this->escrowService->releaseFunds($locked, "noshow:client:confirm:{$locked->id}");
+                }
+
                 OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
             }
 
@@ -212,6 +230,15 @@ class CancellationService
         return TechnicianFlag::query()
             ->where('order_id', $order->id)
             ->where('reason', TechnicianFlagReason::NoShow)
+            ->where('status', TechnicianFlagStatus::Open)
+            ->first();
+    }
+
+    private function openClientNoShowFlag(Order $order): ?TechnicianFlag
+    {
+        return TechnicianFlag::query()
+            ->where('order_id', $order->id)
+            ->where('reason', TechnicianFlagReason::ClientNoShow)
             ->where('status', TechnicianFlagStatus::Open)
             ->first();
     }

@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Services\CancellationService;
 use App\Services\EscrowService;
+use App\Services\TechnicianFlagService;
 use App\Services\WalletService;
 use Database\Seeders\AppSettingSeeder;
 use Database\Seeders\PlatformSeeder;
@@ -91,14 +92,32 @@ class TechnicianFlagTest extends TestCase
         ]);
     }
 
-    public function test_a_client_no_show_raises_no_flag(): void
+    public function test_a_client_no_show_raises_a_claim_not_a_technician_offense(): void
     {
         $tech = Technician::factory()->active()->create();
         $order = $this->acceptedOrder($tech);
 
-        app(CancellationService::class)->clientNoShow($order); // client's fault
+        app(CancellationService::class)->clientNoShow($order); // tech's claim to verify
 
-        $this->assertDatabaseCount('technician_flags', 0);
+        // A client no-show raises a claim for admin review, but it is NOT a technician
+        // reliability offense — it stays out of the offense count and the flags queue.
+        $this->assertDatabaseHas('technician_flags', [
+            'order_id' => $order->id, 'reason' => 'client_no_show', 'status' => 'open',
+        ]);
+        $this->assertSame(0, app(TechnicianFlagService::class)->openCountFor($tech->id));
+    }
+
+    public function test_client_no_show_claim_is_excluded_from_the_offense_queue(): void
+    {
+        $tech = Technician::factory()->active()->create();
+        $order = $this->acceptedOrder($tech);
+        app(CancellationService::class)->clientNoShow($order);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/technician-flags')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     // ---------- admin assessment ----------
