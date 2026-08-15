@@ -51,17 +51,67 @@ class NoShowTest extends TestCase
 
     // ---------- client no-show (technician reports) ----------
 
-    public function test_client_no_show_releases_the_inspection_fee_to_the_tech(): void
+    public function test_tech_reporting_a_client_no_show_raises_a_flag_without_paying(): void
     {
         [$order, , $tech] = $this->acceptedOrder();
 
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
             ->postJson("/api/orders/{$order->id}/no-show/client")->assertOk();
 
+        // Report-only: no money moves, the order carries on, a claim awaits admin review.
+        $order->refresh();
+        $this->assertSame(OrderStatus::Accepted, $order->status);
+        $this->assertSame(0.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+        $this->assertDatabaseHas('technician_flags', [
+            'order_id' => $order->id, 'reason' => 'client_no_show', 'status' => 'open',
+        ]);
+    }
+
+    public function test_a_second_client_no_show_report_is_blocked(): void
+    {
+        [$order, , $tech] = $this->acceptedOrder();
+        $techUser = $tech->user()->firstOrFail();
+
+        $this->actingAs($techUser, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/client")->assertOk();
+        $this->actingAs($techUser, 'sanctum')->postJson("/api/orders/{$order->id}/no-show/client")->assertStatus(409);
+    }
+
+    public function test_admin_confirms_a_client_no_show_releasing_the_fee_to_the_tech(): void
+    {
+        [$order, , $tech] = $this->acceptedOrder();
+        $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
+            ->postJson("/api/orders/{$order->id}/no-show/client")->assertOk();
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/orders/{$order->id}/no-show/resolve", ['outcome' => 'confirmed'])->assertOk();
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::NoShow, $order->status);
         // Full 50 to the tech — no commission on the inspection fee.
-        $this->assertSame(OrderStatus::NoShow, $order->refresh()->status);
         $this->assertSame(50.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'released']);
+        $this->assertDatabaseHas('technician_flags', [
+            'order_id' => $order->id, 'reason' => 'client_no_show', 'status' => 'reviewed', 'outcome' => 'upheld',
+        ]);
+    }
+
+    public function test_admin_dismisses_a_client_no_show_leaving_the_order_active(): void
+    {
+        [$order, , $tech] = $this->acceptedOrder();
+        $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
+            ->postJson("/api/orders/{$order->id}/no-show/client")->assertOk();
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/orders/{$order->id}/no-show/resolve", ['outcome' => 'dismissed'])->assertOk();
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::Accepted, $order->status); // carries on
+        $this->assertSame(0.0, (float) $tech->user->wallet()->firstOrFail()->available_balance); // no payout
+        $this->assertDatabaseHas('technician_flags', [
+            'order_id' => $order->id, 'reason' => 'client_no_show', 'status' => 'reviewed', 'outcome' => 'dismissed',
+        ]);
     }
 
     public function test_only_the_assigned_tech_can_report_a_client_no_show(): void

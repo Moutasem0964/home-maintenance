@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\TechnicianFlagOutcome;
+use App\Enums\TechnicianFlagReason;
 use App\Enums\TechnicianFlagStatus;
 use App\Http\Controllers\Concerns\AuthorizesAdmin;
 use App\Http\Controllers\Controller;
@@ -23,6 +24,7 @@ class AdminTechnicianFlagController extends Controller
         $this->assertAdmin($request);
 
         $flags = TechnicianFlag::query()
+            ->whereIn('reason', TechnicianFlagReason::technicianOffenseValues())
             ->where('status', TechnicianFlagStatus::Open)
             ->with('technician.user')
             ->latest()
@@ -39,6 +41,11 @@ class AdminTechnicianFlagController extends Controller
         /** @var User $user */
         $user = $request->user();
         $flagModel = TechnicianFlag::findOrFail($flag);
+
+        // Claims (e.g. a client no-show) carry a money action and must be resolved through the
+        // order no-show endpoint, not dismissed as a plain reliability offense here.
+        abort_if($flagModel->reason === TechnicianFlagReason::ClientNoShow, 422, 'Resolve this claim via the order no-show endpoint.');
+
         $note = $request->validated('note');
 
         $flagModel->update([

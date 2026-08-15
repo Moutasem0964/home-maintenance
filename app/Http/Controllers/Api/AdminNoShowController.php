@@ -12,7 +12,7 @@ use App\Services\CancellationService;
 
 class AdminNoShowController extends Controller
 {
-    /** Admin confirms (refund + close) or dismisses a client-reported technician no-show. */
+    /** Admin confirms or dismisses a reported no-show (technician or client), routing by the open claim. */
     public function resolve(ResolveNoShowRequest $request, int $order, CancellationService $cancellationService): OrderResource
     {
         /** @var User $user */
@@ -23,7 +23,7 @@ class AdminNoShowController extends Controller
         $note = $request->validated('note');
 
         try {
-            return new OrderResource($cancellationService->resolveTechnicianNoShow(
+            return new OrderResource($cancellationService->resolveNoShow(
                 $orderModel,
                 $user,
                 $request->validated('outcome') === 'confirmed',

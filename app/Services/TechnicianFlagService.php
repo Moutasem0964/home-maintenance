@@ -25,6 +25,7 @@ class TechnicianFlagService
     public function openCountFor(int $technicianId): int
     {
         return TechnicianFlag::where('technician_id', $technicianId)
+            ->whereIn('reason', TechnicianFlagReason::technicianOffenseValues())
             ->where('status', TechnicianFlagStatus::Open)
             ->count();
     }
@@ -45,6 +46,7 @@ class TechnicianFlagService
     public function resolveOpenFor(int $technicianId, User $admin, TechnicianFlagOutcome $outcome, ?string $note = null): int
     {
         return TechnicianFlag::where('technician_id', $technicianId)
+            ->whereIn('reason', TechnicianFlagReason::technicianOffenseValues())
             ->where('status', TechnicianFlagStatus::Open)
             ->update([
                 'status' => TechnicianFlagStatus::Reviewed,

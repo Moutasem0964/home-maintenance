@@ -772,7 +772,7 @@
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/client", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "no-show", "client"] },
-            "description": "Assigned tech reports the client was absent on-site. Order -> no_show; the inspection fee is released to the tech. Only valid while the order is accepted (tech on-site)."
+            "description": "Assigned tech reports the client was absent on-site (order must be accepted / tech on-site). The system does NOT pay out — no status change, the inspection fee stays held. It raises a client-no-show claim for admin review; an admin then resolves it. One open claim per order."
           }
         },
         {
@@ -795,7 +795,7 @@
               "raw": "{\n  \"outcome\": \"confirmed\",\n  \"note\": \"Tech confirmed no-show after phone contact\"\n}"
             },
             "url": { "raw": "{{base_url}}/api/admin/orders/{{order_id}}/no-show/resolve", "host": ["{{base_url}}"], "path": ["api", "admin", "orders", "{{order_id}}", "no-show", "resolve"] },
-            "description": "Admin resolves a reported no-show. outcome=dismissed → nothing moves, the order carries on. outcome=confirmed → the client is refunded in full, the order closes as no_show, and the flag is upheld as a record against the technician."
+            "description": "Admin resolves a reported no-show (technician OR client), routing by the open claim on the order. outcome=dismissed → nothing moves, the order carries on. outcome=confirmed → a technician no-show refunds the client in full; a client no-show releases the full inspection fee to the technician. Either way the order closes as no_show and the flag is upheld."
           }
         }
       ]
