@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\DispatchOfferStatus;
+use App\Enums\NotificationCategory;
 use App\Exceptions\OfferUnavailableException;
 use App\Http\Controllers\Concerns\ResolvesTechnician;
 use App\Http\Controllers\Controller;
@@ -11,6 +12,7 @@ use App\Http\Resources\DispatchOfferResource;
 use App\Http\Resources\OrderResource;
 use App\Models\DispatchOffer;
 use App\Services\AssignmentService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -33,7 +35,7 @@ class TechnicianOfferController extends Controller
         return DispatchOfferResource::collection($offers);
     }
 
-    public function accept(Request $request, int $offer, AssignmentService $assignmentService): OrderResource
+    public function accept(Request $request, int $offer, AssignmentService $assignmentService, NotificationService $notificationService): OrderResource
     {
         $technician = $this->technicianFor($request);
 
@@ -42,6 +44,14 @@ class TechnicianOfferController extends Controller
 
         try {
             $order = $assignmentService->accept($dispatchOffer);
+
+            $notificationService->notify(
+                $order->client,
+                NotificationCategory::Orders,
+                'تم قبول طلبك',
+                'الفني في طريقه إليك الآن.',
+                $order,
+            );
 
             return new OrderResource($order);
         } catch (OfferUnavailableException $e) {

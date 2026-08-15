@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\NotificationCategory;
 use App\Exceptions\ArrivalOutOfRangeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\ArriveRequest;
@@ -10,11 +11,12 @@ use App\Models\Order;
 use App\Models\Technician;
 use App\Models\User;
 use App\Services\ArrivalService;
+use App\Services\NotificationService;
 
 class ArrivalController extends Controller
 {
     /** Assigned technician marks on-site arrival (geofenced); stamps arrived_at. */
-    public function store(ArriveRequest $request, int $order, ArrivalService $arrivalService): OrderResource
+    public function store(ArriveRequest $request, int $order, ArrivalService $arrivalService, NotificationService $notificationService): OrderResource
     {
         $orderModel = Order::findOrFail($order);
 
@@ -29,6 +31,14 @@ class ArrivalController extends Controller
                 $orderModel,
                 (float) $request->validated('lat'),
                 (float) $request->validated('lng'),
+            );
+
+            $notificationService->notify(
+                $updated->client,
+                NotificationCategory::Orders,
+                'وصل الفني',
+                'وصل الفني إلى موقعك.',
+                $updated,
             );
 
             return new OrderResource($updated);

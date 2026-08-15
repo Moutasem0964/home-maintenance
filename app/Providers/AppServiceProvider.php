@@ -2,12 +2,16 @@
 
 namespace App\Providers;
 
+use App\Contracts\PushSender;
 use App\Contracts\SmsSender;
 use App\Models\User;
+use App\Services\Push\FcmPushSender;
+use App\Services\Push\LogPushSender;
 use App\Services\Sms\LogSmsSender;
 use App\Services\Sms\SmsChefSmsSender;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Kreait\Firebase\Contract\Messaging;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +28,15 @@ class AppServiceProvider extends ServiceProvider
                     (string) config('sms.smschef.device'),
                 ),
                 default => new LogSmsSender,
+            };
+        });
+
+        // 'log' (default, local/tests) just logs; 'fcm' delivers through Firebase Cloud
+        // Messaging. Resolving the FCM sender lazily means tests never need Firebase.
+        $this->app->bind(PushSender::class, function ($app) {
+            return match (config('push.driver')) {
+                'fcm' => new FcmPushSender($app->make(Messaging::class)),
+                default => new LogPushSender,
             };
         });
     }

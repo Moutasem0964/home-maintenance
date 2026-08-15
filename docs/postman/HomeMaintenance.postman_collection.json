@@ -228,6 +228,31 @@
       ]
     },
     {
+      "name": "Devices",
+      "item": [
+        {
+          "name": "Register Device Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } }, "raw": "{\n  \"token\": \"fcm-device-token\",\n  \"platform\": \"android\"\n}" },
+            "url": { "raw": "{{base_url}}/api/device-tokens", "host": ["{{base_url}}"], "path": ["api", "device-tokens"] },
+            "description": "Register (or move) an FCM device token for the authenticated user. Call on login/app-start and whenever the token changes. platform: android | ios | web. updateOrCreate on the token — re-registering updates instead of duplicating, and a token moves to the new user on a shared device."
+          }
+        },
+        {
+          "name": "Delete Device Token",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } }, "raw": "{\n  \"token\": \"fcm-device-token\"\n}" },
+            "url": { "raw": "{{base_url}}/api/device-tokens", "host": ["{{base_url}}"], "path": ["api", "device-tokens"] },
+            "description": "Remove a device token (call on logout). Only deletes a token owned by the current user."
+          }
+        }
+      ]
+    },
+    {
       "name": "Catalog",
       "item": [
         {
