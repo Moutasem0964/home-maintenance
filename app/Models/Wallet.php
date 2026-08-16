@@ -28,6 +28,7 @@ class Wallet extends Model
         return ['available_balance' => 'decimal:2', 'held_balance' => 'decimal:2'];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

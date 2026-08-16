@@ -35,6 +35,11 @@ class AppSettingSeeder extends Seeder
             ['key' => 'parts_wait_max_hours',     'value' => '72',   'data_type' => 'int',     'description' => 'Hours a technician may pause an order waiting for parts before it is flagged for admin review'],
             ['key' => 'pending_expiry_minutes',   'value' => '10',   'data_type' => 'int',     'description' => 'Minutes an urgent order may sit pending (nobody accepted) before it expires and the inspection hold is refunded; a scheduled order expires once its appointment time passes unaccepted'],
             ['key' => 'max_dispatch_attempts',    'value' => '3',    'data_type' => 'int',     'description' => 'Max times a technician may be offered the same order; the retry loop re-offers timed-out (not declined) technicians up to this cap'],
+            // Manual (receipt-backed) top-up: the cash/bank account shown to users to transfer to.
+            // PLACEHOLDERS — replace with the real account details.
+            ['key' => 'manual_topup_account_name',   'value' => 'شركة الصيانة المنزلية', 'data_type' => 'string', 'description' => 'Account holder name shown to the user for a manual wallet top-up transfer'],
+            ['key' => 'manual_topup_account_number', 'value' => '0000-0000-0000', 'data_type' => 'string', 'description' => 'Account/wallet number the user transfers to for a manual top-up (then uploads the receipt)'],
+            ['key' => 'manual_topup_instructions',   'value' => 'حوّل المبلغ إلى الحساب أعلاه ثم ارفع صورة الإيصال ليقوم المشرف بشحن محفظتك.', 'data_type' => 'string', 'description' => 'Short instructions shown with the manual top-up account details'],
         ];
 
         foreach ($settings as $setting) {

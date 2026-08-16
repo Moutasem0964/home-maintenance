@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\AdminDepositController;
 use App\Http\Controllers\Api\AdminNoShowController;
 use App\Http\Controllers\Api\AdminPlatformWalletController;
 use App\Http\Controllers\Api\AdminTechnicianController;
 use App\Http\Controllers\Api\AdminTechnicianFlagController;
+use App\Http\Controllers\Api\AdminWithdrawalController;
 use App\Http\Controllers\Api\AppSettingController;
 use App\Http\Controllers\Api\ArrivalController;
 use App\Http\Controllers\Api\AuthController;
@@ -24,7 +26,9 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\TechnicianOfferController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\WalletDepositController;
 use App\Http\Controllers\Api\WarrantyController;
+use App\Http\Controllers\Api\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -57,7 +61,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('firebase/token', [FirebaseTokenController::class, 'issue']);
 
     Route::get('wallet', [WalletController::class, 'show']);
-    Route::post('wallet/top-up', [WalletController::class, 'topUp']);
+    Route::post('wallet/top-up', [WalletController::class, 'topUp']); // instant credit — demo/testing only
+
+    // Manual (receipt-backed) top-up — production money-in.
+    Route::get('wallet/deposits', [WalletDepositController::class, 'index']);
+    Route::post('wallet/deposits', [WalletDepositController::class, 'store']);
+    Route::get('admin/deposits', [AdminDepositController::class, 'index']);
+    Route::post('admin/deposits/{topUp}/approve', [AdminDepositController::class, 'approve']);
+    Route::post('admin/deposits/{topUp}/reject', [AdminDepositController::class, 'reject']);
+    Route::get('admin/deposits/{topUp}/receipt', [AdminDepositController::class, 'receipt']);
+
+    // Technician cash-out — production money-out.
+    Route::get('technician/withdrawals', [WithdrawalController::class, 'index']);
+    Route::post('technician/withdrawals', [WithdrawalController::class, 'store']);
+    Route::get('technician/withdrawals/{withdrawal}/receipt', [WithdrawalController::class, 'receipt']);
+    Route::get('admin/withdrawals', [AdminWithdrawalController::class, 'index']);
+    Route::post('admin/withdrawals/{withdrawal}/complete', [AdminWithdrawalController::class, 'complete']);
+    Route::post('admin/withdrawals/{withdrawal}/reject', [AdminWithdrawalController::class, 'reject']);
+    Route::get('admin/withdrawals/{withdrawal}/receipt', [AdminWithdrawalController::class, 'receipt']);
 
     Route::apiResource('addresses', AddressController::class);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);

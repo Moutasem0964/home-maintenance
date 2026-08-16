@@ -8,7 +8,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Auto-blocked while the technician has a disputed order (WithdrawalService rule). */
+/**
+ * Auto-blocked while the technician has a disputed order (WithdrawalService rule).
+ *
+ * @property WithdrawalStatus $status
+ * @property WithdrawalMethod $method
+ * @property numeric-string $amount
+ */
 class Withdrawal extends Model
 {
     use HasFactory;
@@ -25,6 +31,7 @@ class Withdrawal extends Model
         ];
     }
 
+    /** @return BelongsTo<Technician, $this> */
     public function technician(): BelongsTo
     {
         return $this->belongsTo(Technician::class);
