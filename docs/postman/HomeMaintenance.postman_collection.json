@@ -82,6 +82,10 @@
   {
    "key": "withdrawal_id",
    "value": "1"
+  },
+  {
+   "key": "notification_id",
+   "value": "1"
   }
  ],
  "item": [
@@ -2674,6 +2678,136 @@
        ]
       },
       "description": "Stream the payout receipt for the record."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Notifications",
+   "item": [
+    {
+     "name": "List Notifications",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/notifications",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "notifications"
+       ]
+      },
+      "description": "The caller's bell notifications, newest first (paginated). Pass ?status=unread to filter."
+     }
+    },
+    {
+     "name": "List Unread Only",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/notifications?status=unread",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "notifications"
+       ],
+       "query": [
+        {
+         "key": "status",
+         "value": "unread"
+        }
+       ]
+      },
+      "description": "Unread notifications only."
+     }
+    },
+    {
+     "name": "Unread Count",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/notifications/unread-count",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "notifications",
+        "unread-count"
+       ]
+      },
+      "description": "Unread count for the bell badge."
+     }
+    },
+    {
+     "name": "Mark One Read",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/notifications/{{notification_id}}/read",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "notifications",
+        "{{notification_id}}",
+        "read"
+       ]
+      },
+      "description": "Mark a single notification read (idempotent; must be yours)."
+     }
+    },
+    {
+     "name": "Mark All Read",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/notifications/read-all",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "notifications",
+        "read-all"
+       ]
+      },
+      "description": "Mark every unread notification read."
      }
     }
    ]
