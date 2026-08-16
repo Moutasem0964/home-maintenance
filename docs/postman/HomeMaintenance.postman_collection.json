@@ -513,6 +513,42 @@
       },
       "description": "Redeems {{reset_ticket}} (from Password — Verify OTP), sets the new password, and revokes all sessions."
      }
+    },
+    {
+     "name": "Update Profile",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/profile",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "profile"
+       ]
+      },
+      "description": "Update the signed-in user's display name and optional profile image URL.",
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"name\": \"New Name\",\n  \"profile_image_url\": null\n}"
+      }
+     }
     }
    ]
   },
@@ -727,6 +763,52 @@
       },
       "description": "Public (no auth) — powers the guest home screen. Returns active top-level service categories, each with active children nested. Every category includes icon_url (an Iconify Material Design SVG, e.g. https://api.iconify.design/mdi/flash.svg) and guide_price."
      }
+    },
+    {
+     "name": "Get App Settings",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/app-settings",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "app-settings"
+       ]
+      },
+      "description": "Public. Client-readable app settings (fees, windows, radii) the apps need at runtime."
+     }
+    },
+    {
+     "name": "List Offices",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/offices",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "offices"
+       ]
+      },
+      "description": "The platform's physical offices/branches."
+     }
     }
    ]
   },
@@ -843,6 +925,30 @@
        ]
       },
       "description": "PLANNED — delete an address by id."
+     }
+    },
+    {
+     "name": "Get Address",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/addresses/1",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "addresses",
+        "1"
+       ]
+      },
+      "description": "A single saved address by id (must belong to the caller)."
      }
     }
    ]
@@ -983,6 +1089,30 @@
         "{{order_id}}"
        ]
       }
+     }
+    },
+    {
+     "name": "Get Order Photo",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/order-photos/1",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "order-photos",
+        "1"
+       ]
+      },
+      "description": "Streams a private order photo (flaw/closure/dispute) by id, if the caller is a party to the order."
      }
     }
    ]
@@ -1436,6 +1566,30 @@
       },
       "description": "Decline and re-offer the order to the next nearest technician."
      }
+    },
+    {
+     "name": "Technician — Probation Progress",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/probation-progress",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "probation-progress"
+       ]
+      },
+      "description": "Progress toward promotion out of probation (completed orders + rating vs the thresholds)."
+     }
     }
    ]
   },
@@ -1859,6 +2013,29 @@
        ]
       },
       "description": "Admin-only. resolution: full_refund | partial_refund | release_to_technician (warranty_order not implemented yet). refund_amount is required for partial_refund and is refunded to the client FIFO across held payments; the remainder is released to the technician (minus commission). Order -> resolved."
+     }
+    },
+    {
+     "name": "List My Disputes",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/disputes",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "disputes"
+       ]
+      },
+      "description": "Disputes visible to the caller (client's own, or an admin's full queue)."
      }
     }
    ]
