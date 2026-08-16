@@ -15,6 +15,8 @@ use App\Services\EscrowService;
 use App\Services\WalletService;
 use Database\Seeders\PlatformSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DisputeTest extends TestCase
@@ -335,5 +337,59 @@ class DisputeTest extends TestCase
         $this->actingAs($client, 'sanctum')
             ->postJson("/api/orders/{$order->id}/dispute", ['reason' => 'fault_returned'])
             ->assertStatus(409);
+    }
+
+    public function test_raising_a_dispute_stores_and_returns_evidence_photos(): void
+    {
+        Storage::fake('local');
+        [$order, $client] = $this->completedOrder();
+
+        $this->actingAs($client, 'sanctum')
+            ->post("/api/orders/{$order->id}/dispute", [
+                'reason' => 'home_damage',
+                'description' => 'Scratched the wall.',
+                'photos' => [UploadedFile::fake()->image('a.jpg'), UploadedFile::fake()->image('b.jpg')],
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data.photos');
+
+        $this->assertDatabaseCount('order_photos', 2);
+        $this->assertDatabaseHas('order_photos', [
+            'order_id' => $order->id, 'kind' => 'dispute', 'uploaded_by' => $client->id,
+        ]);
+    }
+
+    public function test_a_dispute_can_still_be_raised_without_photos(): void
+    {
+        [$order, $client] = $this->completedOrder();
+
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/orders/{$order->id}/dispute", ['reason' => 'fault_returned'])
+            ->assertCreated()
+            ->assertJsonCount(0, 'data.photos');
+
+        $this->assertDatabaseCount('order_photos', 0);
+    }
+
+    public function test_dispute_photos_are_capped_and_must_be_images(): void
+    {
+        Storage::fake('local');
+        [$order, $client] = $this->completedOrder();
+
+        // Too many.
+        $this->actingAs($client, 'sanctum')
+            ->post("/api/orders/{$order->id}/dispute", [
+                'reason' => 'other',
+                'photos' => array_fill(0, 6, UploadedFile::fake()->image('x.jpg')),
+            ], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+
+        // Not an image.
+        $this->actingAs($client, 'sanctum')
+            ->post("/api/orders/{$order->id}/dispute", [
+                'reason' => 'other',
+                'photos' => [UploadedFile::fake()->create('evil.pdf', 100)],
+            ], ['Accept' => 'application/json'])
+            ->assertStatus(422);
     }
 }

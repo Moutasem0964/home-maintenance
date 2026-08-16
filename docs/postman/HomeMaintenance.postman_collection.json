@@ -704,12 +704,15 @@
             "method": "POST",
             "header": [{ "key": "Accept", "value": "application/json" }],
             "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"reason\": \"fault_returned\",\n  \"description\": \"The tap is leaking again the next day.\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "reason", "value": "fault_returned", "type": "text" },
+                { "key": "description", "value": "The tap is leaking again the next day.", "type": "text" },
+                { "key": "photos[]", "type": "file", "src": [] }
+              ]
             },
             "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/dispute", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "dispute"] },
-            "description": "Client raises a dispute. Valid in two moments: during the closure review window (order still in_progress, tech has requested closure) to catch on-site damage, OR during the 48h held window after completion. Order -> disputed, which freezes the release cron. reason: fault_returned | home_damage | different_part | other. Auto-saves the new id to {{dispute_id}}."
+            "description": "Client raises a dispute (multipart/form-data). Valid in two moments: during the closure review window (order still in_progress, tech has requested closure) to catch on-site damage, OR during the 48h held window after completion. Order -> disputed, which freezes the release cron. reason: fault_returned | home_damage | different_part | other. photos[] is OPTIONAL — up to 5 image evidence files (jpg/jpeg/png/webp, ≤4MB each), returned in data.photos and viewable via /api/order-photos/{id}. Auto-saves the new id to {{dispute_id}}."
           }
         },
         {

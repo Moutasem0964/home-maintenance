@@ -6,6 +6,8 @@ use App\Models\Dispute;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+// OrderPhotoResource is in the same namespace (App\Http\Resources).
+
 /** @mixin Dispute */
 class DisputeResource extends JsonResource
 {
@@ -19,6 +21,7 @@ class DisputeResource extends JsonResource
             'status' => $this->status,
             'resolution' => $this->resolution,
             'description' => $this->description,
+            'photos' => OrderPhotoResource::collection($this->whenLoaded('photos')),
             'resolved_at' => $this->resolved_at,
             'created_at' => $this->created_at,
         ];
