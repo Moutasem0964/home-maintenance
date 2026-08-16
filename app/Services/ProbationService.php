@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\NotificationCategory;
 use App\Enums\OrderStatus;
 use App\Enums\TechnicianStatus;
 use App\Models\AppSetting;
@@ -9,6 +10,8 @@ use App\Models\Technician;
 
 class ProbationService
 {
+    public function __construct(private readonly NotificationService $notificationService) {}
+
     /**
      * Promote a probation technician to active once they've completed enough orders at a
      * high enough average rating (both admin-tunable settings). No-op for anyone not on
@@ -33,6 +36,13 @@ class ProbationService
             'status' => TechnicianStatus::Active,
             'daily_order_limit' => null,
         ]);
+
+        $this->notificationService->notify(
+            $technician->user,
+            NotificationCategory::Admin,
+            'تمت ترقيتك',
+            'تمت ترقية حسابك إلى فني نشط — لا قيود على عدد الطلبات اليومية.',
+        );
     }
 
     /**

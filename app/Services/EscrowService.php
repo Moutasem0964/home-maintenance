@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\BalanceType;
+use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -30,6 +31,7 @@ class EscrowService
 {
     public function __construct(
         private readonly PlatformService $platformService,
+        private readonly NotificationService $notificationService,
     ) {}
 
     private function isReleasable(Order $order): bool
@@ -195,6 +197,14 @@ class EscrowService
                     'event_type' => OrderEventType::FundsReleased,
                 ]);
             }
+
+            $this->notificationService->notify(
+                $order->technician->user,
+                NotificationCategory::Financial,
+                'تم استلام دفعة',
+                'تم تحرير مستحقاتك عن الطلب إلى محفظتك.',
+                $order,
+            );
         });
     }
 

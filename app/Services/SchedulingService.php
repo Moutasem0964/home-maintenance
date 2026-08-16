@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\AppointmentType;
+use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
 use App\Exceptions\OfferUnavailableException;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\DB;
 
 class SchedulingService
 {
+    public function __construct(private readonly NotificationService $notificationService) {}
+
     /**
      * Book the technician's visit for a scheduled order at its requested time. Called
      * inside AssignmentService::accept (already under the order lock). Rejects an
@@ -113,6 +116,25 @@ class SchedulingService
 
             if ($didActivate) {
                 $activated++;
+
+                /** @var Order $order */
+                $order = $appointment->order()->firstOrFail();
+                $this->notificationService->notify(
+                    $order->client,
+                    NotificationCategory::Orders,
+                    'موعد الصيانة الآن',
+                    'حان موعد الصيانة المجدول — الفني في طريقه إليك.',
+                    $order,
+                );
+                if ($order->technician_id !== null) {
+                    $this->notificationService->notify(
+                        $order->technician->user,
+                        NotificationCategory::Orders,
+                        'موعدك الآن',
+                        'حان موعد طلب مجدول — توجّه إلى موقع العميل.',
+                        $order,
+                    );
+                }
             }
         }
 
@@ -137,7 +159,25 @@ class SchedulingService
 
         $reminded = 0;
         foreach ($upcoming as $appointment) {
-            // TODO(notifications): dispatch the actual reminder (push/SMS) here.
+            /** @var Order $order */
+            $order = $appointment->order()->firstOrFail();
+            $this->notificationService->notify(
+                $order->client,
+                NotificationCategory::Orders,
+                'تذكير بموعد الصيانة',
+                'لديك موعد صيانة مجدول قريباً.',
+                $order,
+            );
+            if ($order->technician_id !== null) {
+                $this->notificationService->notify(
+                    $order->technician->user,
+                    NotificationCategory::Orders,
+                    'تذكير بموعد',
+                    'لديك موعد طلب مجدول قريباً.',
+                    $order,
+                );
+            }
+
             $appointment->update(['reminder_sent_at' => now()]);
             $reminded++;
         }
