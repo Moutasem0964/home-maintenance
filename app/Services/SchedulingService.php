@@ -6,6 +6,7 @@ use App\Enums\AppointmentStatus;
 use App\Enums\AppointmentType;
 use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
+use App\Enums\OrderKind;
 use App\Enums\OrderStatus;
 use App\Exceptions\OfferUnavailableException;
 use App\Models\Appointment;
@@ -107,7 +108,11 @@ class SchedulingService
                 }
 
                 $locked->update(['status' => AppointmentStatus::Activated]);
-                $order->update(['status' => OrderStatus::Accepted]);
+                // A warranty visit has no quote step — activating it goes straight to in-progress
+                // so the technician can close it; a normal scheduled order goes on-site (accepted).
+                $order->update([
+                    'status' => $order->kind === OrderKind::Warranty ? OrderStatus::InProgress : OrderStatus::Accepted,
+                ]);
 
                 OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::AppointmentActivated]);
 

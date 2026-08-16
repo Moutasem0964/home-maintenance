@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderKind;
 use App\Enums\TechnicianStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -90,6 +91,7 @@ class Technician extends Model
             return true;
         }
 
-        return $this->orders()->whereDate('created_at', today())->count() < $this->daily_order_limit;
+        // Warranty visits are an obligation, not new work — they don't consume the daily quota.
+        return $this->orders()->where('kind', '!=', OrderKind::Warranty)->whereDate('created_at', today())->count() < $this->daily_order_limit;
     }
 }

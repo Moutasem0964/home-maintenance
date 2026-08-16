@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property OrderStatus $status
  * @property OrderType $type
+ * @property OrderKind $kind
  * @property Carbon|null $scheduled_at
  * @property Carbon|null $parts_waiting_until
  * @property Carbon|null $parts_overdue_flagged_at

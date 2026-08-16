@@ -765,10 +765,10 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"description\": \"The same fault came back.\"\n}"
+              "raw": "{\n  \"scheduled_at\": \"2026-08-20 14:00:00\",\n  \"description\": \"The same fault came back.\"\n}"
             },
             "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/warranty-claim", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "warranty-claim"] },
-            "description": "Client claims the warranty within warranty_until. Spawns a same-technician, zero-labor warranty order (kind=warranty, parent_order_id set, status in_progress). 409 if the warranty expired, order isn't completed, or a warranty visit already exists. Saves the new order id to {{warranty_order_id}}."
+            "description": "Client claims the warranty within warranty_until and PICKS a revisit time (scheduled_at, future, within scheduled_max_days). Spawns a zero-cost warranty order (kind=warranty, parent_order_id set) and books the ORIGINAL technician into that slot as a scheduled visit (status scheduled). 409 if the warranty expired, the order isn't completed, a warranty visit already exists, or the original tech is already booked at that time. Saves the new order id to {{warranty_order_id}}. (Reassignment to a paid substitute when the original tech can't take it is a later slice.)"
           }
         }
       ]
