@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\LocationTracker;
 use App\Enums\AppointmentStatus;
 use App\Enums\DispatchOfferStatus;
 use App\Enums\NotificationCategory;
@@ -25,6 +26,7 @@ class AssignmentService
         private readonly SchedulingService $schedulingService,
         private readonly EscrowService $escrowService,
         private readonly NotificationService $notificationService,
+        private readonly LocationTracker $locationTracker,
     ) {}
 
     /**
@@ -214,7 +216,7 @@ class AssignmentService
      */
     public function accept(DispatchOffer $offer): Order
     {
-        return DB::transaction(function () use ($offer) {
+        $order = DB::transaction(function () use ($offer): Order {
             /** @var Order $order */
             $order = Order::whereKey($offer->order_id)->lockForUpdate()->firstOrFail();
             /** @var DispatchOffer $lockedOffer */
@@ -257,6 +259,14 @@ class AssignmentService
 
             return $order;
         });
+
+        // An urgent order goes straight on-site → open live location for the trip. A scheduled
+        // order only starts tracking when its appointment activates (SchedulingService).
+        if ($order->status === OrderStatus::Accepted) {
+            $this->locationTracker->open($order);
+        }
+
+        return $order;
     }
 
     /** Decline an open offer and immediately re-offer the order to the next technician. */

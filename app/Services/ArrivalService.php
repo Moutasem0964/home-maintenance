@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\LocationTracker;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
 use App\Exceptions\ArrivalOutOfRangeException;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\DB;
 
 class ArrivalService
 {
+    public function __construct(private readonly LocationTracker $locationTracker) {}
+
     /**
      * The assigned technician marks arrival on-site. The server verifies their GPS is
      * within arrival_radius_meters of the order location (proof of presence), stamps
@@ -20,7 +23,7 @@ class ArrivalService
      */
     public function markArrived(Order $order, float $lat, float $lng): Order
     {
-        return DB::transaction(function () use ($order, $lat, $lng): Order {
+        $arrived = DB::transaction(function () use ($order, $lat, $lng): Order {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -46,5 +49,10 @@ class ArrivalService
 
             return $locked;
         });
+
+        // Arrival is the defined stop signal — the tech is on-site, so live tracking ends.
+        $this->locationTracker->close($arrived);
+
+        return $arrived;
     }
 }

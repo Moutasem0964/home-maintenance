@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "orders": {
+      "$orderId": {
+        "meta": {
+          ".read": "auth != null && (auth.uid === data.child('client_uid').val() || auth.uid === data.child('tech_uid').val() || auth.token.admin === true)",
+          ".write": false
+        },
+        "location": {
+          ".read": "auth != null && (auth.uid === root.child('orders').child($orderId).child('meta/client_uid').val() || auth.uid === root.child('orders').child($orderId).child('meta/tech_uid').val() || auth.token.admin === true)",
+          ".write": "auth != null && auth.uid === root.child('orders').child($orderId).child('meta/tech_uid').val() && root.child('orders').child($orderId).child('meta/active').val() === true",
+          "lat": { ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90" },
+          "lng": { ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180" },
+          "updated_at": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
