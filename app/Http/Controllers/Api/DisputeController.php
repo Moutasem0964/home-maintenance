@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\DisputeReason;
 use App\Enums\DisputeResolution;
 use App\Enums\NotificationCategory;
+use App\Enums\OrderPhotoKind;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dispute\RaiseDisputeRequest;
@@ -15,6 +16,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Services\DisputeService;
 use App\Services\NotificationService;
+use App\Services\OrderPhotoService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -28,6 +30,7 @@ class DisputeController extends Controller
 
         $disputes = Dispute::query()
             ->whereHas('order', fn ($query) => $query->where('client_id', $user->id))
+            ->with('photos')
             ->latest()
             ->get();
 
@@ -35,7 +38,7 @@ class DisputeController extends Controller
     }
 
     /** Client raises a dispute on their own completed order during the dispute window. */
-    public function store(RaiseDisputeRequest $request, int $order, DisputeService $disputeService, NotificationService $notificationService): DisputeResource
+    public function store(RaiseDisputeRequest $request, int $order, DisputeService $disputeService, NotificationService $notificationService, OrderPhotoService $photoService): DisputeResource
     {
         $orderModel = Order::findOrFail($order);
 
@@ -56,6 +59,11 @@ class DisputeController extends Controller
             abort(409, $e->getMessage());
         }
 
+        // Attach the client's evidence photos (if any) to the order under the dispute kind.
+        if ($request->hasFile('photos')) {
+            $photoService->store($orderModel, $request->file('photos'), OrderPhotoKind::Dispute, $user->id);
+        }
+
         if ($orderModel->technician_id !== null) {
             $notificationService->notify(
                 $orderModel->technician->user,
@@ -66,7 +74,7 @@ class DisputeController extends Controller
             );
         }
 
-        return new DisputeResource($dispute);
+        return new DisputeResource($dispute->load('photos'));
     }
 
     /** Admin resolves the dispute and routes the escrow money accordingly. */

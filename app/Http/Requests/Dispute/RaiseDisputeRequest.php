@@ -19,6 +19,9 @@ class RaiseDisputeRequest extends FormRequest
         return [
             'reason' => ['required', Rule::enum(DisputeReason::class)],
             'description' => ['nullable', 'string', 'max:2000'],
+            // Optional evidence photos (private disk). Images only, capped to protect VM disk.
+            'photos' => ['sometimes', 'array', 'max:5'],
+            'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }

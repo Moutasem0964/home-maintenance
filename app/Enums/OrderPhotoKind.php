@@ -7,4 +7,5 @@ enum OrderPhotoKind: string
 {
     case Flaw = 'flaw';
     case Closure = 'closure';
+    case Dispute = 'dispute'; // evidence attached by the client when raising a dispute
 }
