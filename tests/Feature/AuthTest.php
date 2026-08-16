@@ -6,6 +6,8 @@ use App\Contracts\SmsSender;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\FakeSmsSender;
 use Tests\TestCase;
 
@@ -55,6 +57,50 @@ class AuthTest extends TestCase
     }
 
     // ── registration ────────────────────────────────────────────────────────
+
+    public function test_client_registration_stores_an_optional_profile_photo(): void
+    {
+        Storage::fake('local');
+        $ticket = $this->verifyForRegister();
+
+        $response = $this->post('/api/auth/register/client', [
+            'phone' => '0912345678',
+            'name' => 'Photo Client',
+            'password' => 'Password123',
+            'password_confirmation' => 'Password123',
+            'ticket' => $ticket,
+            'profile_photo' => UploadedFile::fake()->image('me.jpg'),
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $user = User::where('phone', '+963912345678')->firstOrFail();
+        $this->assertNotNull($user->profile_image_url);
+        Storage::disk('local')->assertExists($user->profile_image_url);
+        $response->assertJsonPath('user.profile_image_url', $user->profile_image_url);
+    }
+
+    public function test_the_profile_photo_is_optional_and_defaults_to_null(): void
+    {
+        [$response, $normalized] = $this->registerFlow();
+        $response->assertCreated();
+
+        $this->assertNull(User::where('phone', $normalized)->firstOrFail()->profile_image_url);
+    }
+
+    public function test_a_non_image_profile_photo_is_rejected(): void
+    {
+        Storage::fake('local');
+        $ticket = $this->verifyForRegister();
+
+        $this->post('/api/auth/register/client', [
+            'phone' => '0912345678',
+            'name' => 'Bad Photo',
+            'password' => 'Password123',
+            'password_confirmation' => 'Password123',
+            'ticket' => $ticket,
+            'profile_photo' => UploadedFile::fake()->create('resume.pdf', 100, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertStatus(422)
+            ->assertJsonValidationErrors(['profile_photo']);
+    }
 
     public function test_register_start_sends_a_code(): void
     {

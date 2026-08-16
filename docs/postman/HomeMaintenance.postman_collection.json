@@ -1,832 +1,2037 @@
 {
-  "info": {
-    "name": "Home Maintenance API",
-    "description": "Domain-organized collection. Set {{base_url}}; login/register auto-saves {{token}} for authed requests.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "auth": {
-    "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
-  },
-  "variable": [
-    { "key": "base_url", "value": "https://home-maintenance.me", "type": "string" },
-    { "key": "token", "value": "", "type": "string" },
-    { "key": "otp_code", "value": "", "type": "string" },
-    { "key": "reset_code", "value": "", "type": "string" },
-    { "key": "order_id", "value": "", "type": "string" },
-    { "key": "technician_id", "value": "", "type": "string" },
-    { "key": "offer_id", "value": "", "type": "string" },
-    { "key": "quote_id", "value": "", "type": "string" },
-    { "key": "closure_code", "value": "", "type": "string" },
-    { "key": "dispute_id", "value": "", "type": "string" },
-    { "key": "warranty_order_id", "value": "", "type": "string" },
-    { "key": "flag_id", "value": "", "type": "string" }
-  ],
-  "item": [
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Register — Start (send OTP)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.debug_code) { pm.collectionVariables.set('otp_code', json.debug_code); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/register/start", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "start"] },
-            "description": "Validates the phone and sends a 4-digit OTP. In dev (SMS_DRIVER=log) read it from storage/logs/laravel.log."
-          }
-        },
-        {
-          "name": "Register — Verify OTP (get ticket)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.ticket) { pm.collectionVariables.set('register_ticket', json.ticket); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"{{otp_code}}\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/register/verify", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "verify"] },
-            "description": "Consumes the OTP and returns a short-lived, single-use verification ticket (auto-saved to {{register_ticket}}). Does NOT create the account — feed the ticket into Register — Client or Technician > Register Technician."
-          }
-        },
-        {
-          "name": "Register — Client (create account)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.token) { pm.collectionVariables.set('token', json.token); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"name\": \"Test Client\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\",\n  \"ticket\": \"{{register_ticket}}\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/register/client", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "client"] },
-            "description": "Redeems {{register_ticket}} (from Verify OTP), creates a client + wallet, returns a token (auto-saved to {{token}})."
-          }
-        },
-        {
-          "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.token) { pm.collectionVariables.set('token', json.token); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] }
-          }
-        },
-        {
-          "name": "Me",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api", "auth", "me"] }
-          }
-        },
-        {
-          "name": "Logout",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/auth/logout", "host": ["{{base_url}}"], "path": ["api", "auth", "logout"] }
-          }
-        },
-        {
-          "name": "Password — Forgot",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.debug_code) { pm.collectionVariables.set('reset_code', json.debug_code); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/password/forgot", "host": ["{{base_url}}"], "path": ["api", "auth", "password", "forgot"] }
-          }
-        },
-        {
-          "name": "Password — Verify OTP (get ticket)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.ticket) { pm.collectionVariables.set('reset_ticket', json.ticket); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"{{reset_code}}\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/password/verify", "host": ["{{base_url}}"], "path": ["api", "auth", "password", "verify"] },
-            "description": "Consumes the reset OTP and returns a short-lived, single-use ticket (auto-saved to {{reset_ticket}}). Feed it into Password — Reset."
-          }
-        },
-        {
-          "name": "Password — Reset",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"phone\": \"0912345678\",\n  \"password\": \"NewPass123\",\n  \"password_confirmation\": \"NewPass123\",\n  \"ticket\": \"{{reset_ticket}}\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/auth/password/reset", "host": ["{{base_url}}"], "path": ["api", "auth", "password", "reset"] },
-            "description": "Redeems {{reset_ticket}} (from Password — Verify OTP), sets the new password, and revokes all sessions."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Wallet",
-      "item": [
-        {
-          "name": "Get Wallet",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/wallet", "host": ["{{base_url}}"], "path": ["api", "wallet"] }
-          }
-        },
-        {
-          "name": "Top Up",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"amount\": \"50.00\",\n  \"gateway_reference\": \"gw-{{$timestamp}}\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/wallet/top-up", "host": ["{{base_url}}"], "path": ["api", "wallet", "top-up"] }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Devices",
-      "item": [
-        {
-          "name": "Register Device Token",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": { "mode": "raw", "options": { "raw": { "language": "json" } }, "raw": "{\n  \"token\": \"fcm-device-token\",\n  \"platform\": \"android\"\n}" },
-            "url": { "raw": "{{base_url}}/api/device-tokens", "host": ["{{base_url}}"], "path": ["api", "device-tokens"] },
-            "description": "Register (or move) an FCM device token for the authenticated user. Call on login/app-start and whenever the token changes. platform: android | ios | web. updateOrCreate on the token — re-registering updates instead of duplicating, and a token moves to the new user on a shared device."
-          }
-        },
-        {
-          "name": "Delete Device Token",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": { "mode": "raw", "options": { "raw": { "language": "json" } }, "raw": "{\n  \"token\": \"fcm-device-token\"\n}" },
-            "url": { "raw": "{{base_url}}/api/device-tokens", "host": ["{{base_url}}"], "path": ["api", "device-tokens"] },
-            "description": "Remove a device token (call on logout). Only deletes a token owned by the current user."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Catalog",
-      "item": [
-        {
-          "name": "List Service Categories",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"] },
-            "description": "Public (no auth) — powers the guest home screen. Returns active top-level service categories, each with active children nested. Every category includes icon_url (an Iconify Material Design SVG, e.g. https://api.iconify.design/mdi/flash.svg) and guide_price."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Addresses",
-      "item": [
-        {
-          "name": "List My Addresses",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/addresses", "host": ["{{base_url}}"], "path": ["api", "addresses"] },
-            "description": "PLANNED — the authenticated client's saved addresses."
-          }
-        },
-        {
-          "name": "Create Address",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"label\": \"Home\",\n  \"lat\": 33.5138,\n  \"lng\": 36.2765,\n  \"building_no\": \"12\",\n  \"floor\": \"3\",\n  \"notes\": \"Near the pharmacy\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/addresses", "host": ["{{base_url}}"], "path": ["api", "addresses"] },
-            "description": "PLANNED — create a new client address."
-          }
-        },
-        {
-          "name": "Update Address",
-          "request": {
-            "method": "PUT",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"label\": \"Work\",\n  \"lat\": 33.5100,\n  \"lng\": 36.2900,\n  \"building_no\": \"5\",\n  \"floor\": \"1\",\n  \"notes\": \"Office building\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/addresses/1", "host": ["{{base_url}}"], "path": ["api", "addresses", "1"] },
-            "description": "PLANNED — update an address by id."
-          }
-        },
-        {
-          "name": "Delete Address",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/addresses/1", "host": ["{{base_url}}"], "path": ["api", "addresses", "1"] },
-            "description": "PLANNED — delete an address by id."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Orders",
-      "item": [
-        {
-          "name": "Create Order",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.data && json.data.id) { pm.collectionVariables.set('order_id', json.data.id); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"operation_id\": \"{{$guid}}\",\n  \"service_category_id\": 1,\n  \"address_id\": 1,\n  \"type\": \"urgent\",\n  \"description\": \"Leaking sink\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"] },
-            "description": "Creates an order and holds the inspection fee in escrow. Requires a funded wallet (top up first). Auto-saves the new id to {{order_id}}. For a scheduled order, use type=scheduled and add scheduled_at (a future ISO datetime).\n\noperation_id is an idempotency token: reuse the SAME value to retry safely (a repeat returns the same order, the fee is held once). {{$guid}} generates a fresh one on each send — pin it to a fixed value to test idempotency."
-          }
-        },
-        {
-          "name": "List My Orders",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"] }
-          }
-        },
-        {
-          "name": "Get Order",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}"] }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Technician",
-      "item": [
-        {
-          "name": "Register Technician",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.token) { pm.collectionVariables.set('token', json.token); }"
-              ] }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                { "key": "phone", "value": "0913333333", "type": "text" },
-                { "key": "name", "value": "Tech Guy", "type": "text" },
-                { "key": "password", "value": "Password123", "type": "text" },
-                { "key": "password_confirmation", "value": "Password123", "type": "text" },
-                { "key": "charter_accepted", "value": "true", "type": "text" },
-                { "key": "ticket", "value": "{{register_ticket}}", "type": "text" },
-                { "key": "id_front", "type": "file", "src": [] },
-                { "key": "id_back", "type": "file", "src": [] },
-                { "key": "selfie", "type": "file", "src": [] }
-              ]
-            },
-            "url": { "raw": "{{base_url}}/api/auth/register/technician", "host": ["{{base_url}}"], "path": ["api", "auth", "register", "technician"] },
-            "description": "Multipart form-data. First run Auth > Register — Start (phone 0913333333) then Register — Verify OTP so {{register_ticket}} is set. Attach id_front, id_back, selfie image files. Redeems the ticket, creates a technician (status=pending) and logs you in (saves {{token}})."
-          }
-        },
-        {
-          "name": "Approve Technician (admin)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/approve", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "approve"] },
-            "description": "Admin only. Log in as an admin (Auth > Login) so {{token}} is an admin token, set {{technician_id}}, then approve → status active."
-          }
-        },
-        {
-          "name": "Suspend Technician (admin)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"note\": \"Repeated withdrawals over two weeks.\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/suspend", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "suspend"] },
-            "description": "Admin only. Sanction for reliability failures: status → probation with a capped daily order limit and taken offline. Also resolves that tech's open flags with outcome=suspended (+ optional note). Re-approve to reinstate."
-          }
-        },
-        {
-          "name": "Ban Technician (admin)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"note\": \"Multiple no-shows; removed.\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/ban", "host": ["{{base_url}}"], "path": ["api", "admin", "technicians", "{{technician_id}}", "ban"] },
-            "description": "Admin only. status → banned and taken offline (removed from anywhere). Also resolves that tech's open flags with outcome=banned (+ optional note)."
-          }
-        },
-        {
-          "name": "List Technician Flags (admin)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.data && json.data[0]) { pm.collectionVariables.set('flag_id', json.data[0].id); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/admin/technician-flags", "host": ["{{base_url}}"], "path": ["api", "admin", "technician-flags"] },
-            "description": "Admin only. The queue of open reliability offenses (no-show / withdrawal) awaiting assessment, newest first. Saves the first id to {{flag_id}}."
-          }
-        },
-        {
-          "name": "Review Technician Flag (admin)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"note\": \"First offense — warning only.\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/admin/technician-flags/{{flag_id}}/review", "host": ["{{base_url}}"], "path": ["api", "admin", "technician-flags", "{{flag_id}}", "review"] },
-            "description": "Admin only. Marks a flag reviewed (dismiss / acknowledge) with an optional note. For an actual sanction, use suspend/ban (which also clears the tech's open flags)."
-          }
-        },
-        {
-          "name": "Technician — Me",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/technician/me", "host": ["{{base_url}}"], "path": ["api", "technician", "me"] }
-          }
-        },
-        {
-          "name": "Technician — Set Services",
-          "request": {
-            "method": "PUT",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"service_category_ids\": [1, 2]\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/technician/services", "host": ["{{base_url}}"], "path": ["api", "technician", "services"] }
-          }
-        },
-        {
-          "name": "Technician — Set Availability",
-          "request": {
-            "method": "PUT",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"is_available\": true,\n  \"current_lat\": 33.5138,\n  \"current_lng\": 36.2765\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/technician/availability", "host": ["{{base_url}}"], "path": ["api", "technician", "availability"] }
-          }
-        },
-        {
-          "name": "Technician — My Offers",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.data && json.data[0]) { pm.collectionVariables.set('offer_id', json.data[0].id); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/technician/offers", "host": ["{{base_url}}"], "path": ["api", "technician", "offers"] },
-            "description": "Open dispatch offers for the logged-in technician. Auto-saves the first offer's id to {{offer_id}}."
-          }
-        },
-        {
-          "name": "Technician — Accept Offer",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/accept", "host": ["{{base_url}}"], "path": ["api", "technician", "offers", "{{offer_id}}", "accept"] },
-            "description": "Atomically take the job. 409 if the order was already taken or the offer expired."
-          }
-        },
-        {
-          "name": "Technician — Decline Offer",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"reason\": \"busy\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/decline", "host": ["{{base_url}}"], "path": ["api", "technician", "offers", "{{offer_id}}", "decline"] },
-            "description": "Decline and re-offer the order to the next nearest technician."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Quotes",
-      "item": [
-        {
-          "name": "Send Quote (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"labor_cost\": \"80.00\",\n  \"warranty_days\": 30,\n  \"justification\": null,\n  \"parts\": [\n    { \"name\": \"Valve\", \"price\": \"20.00\", \"classification\": \"standard\", \"image_url\": \"https://example.com/part.jpg\" }\n  ]\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/quotes", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "quotes"] },
-            "description": "Assigned technician sends the initial quote (labor + parts). Order must be 'accepted'. A justification is required when the total exceeds the category guide price x the anomaly multiplier."
-          }
-        },
-        {
-          "name": "List Quotes",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.data && json.data[0]) { pm.collectionVariables.set('quote_id', json.data[0].id); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/quotes", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "quotes"] },
-            "description": "Client or assigned technician lists the order's quotes. Auto-saves the newest quote id to {{quote_id}}."
-          }
-        },
-        {
-          "name": "Approve Quote (client)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/quotes/{{quote_id}}/approve", "host": ["{{base_url}}"], "path": ["api", "quotes", "{{quote_id}}", "approve"] },
-            "description": "Client approves -> holds the repair fee in escrow and moves the order to in_progress. 422 if the wallet can't cover it."
-          }
-        },
-        {
-          "name": "Reject Quote (client)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/quotes/{{quote_id}}/reject", "host": ["{{base_url}}"], "path": ["api", "quotes", "{{quote_id}}", "reject"] },
-            "description": "Client rejects -> order closes as inspection_only."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Order Lifecycle (technician)",
-      "item": [
-        {
-          "name": "Mark Arrival (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"lat\": 33.5,\n  \"lng\": 36.3\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/arrive", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "arrive"] },
-            "description": "Assigned technician marks on-site arrival. The server verifies the GPS is within arrival_radius_meters (default 50m) of the order location; 422 if out of range. Required before a quote can be sent."
-          }
-        },
-        {
-          "name": "Waiting for Parts (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"note\": \"Ordering a compressor, ~2 days\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/waiting-for-parts", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "waiting-for-parts"] },
-            "description": "Assigned technician pauses an in-progress order to source a part (in_progress -> waiting_for_parts). Stamps a deadline (parts_wait_max_hours, default 72h); an overdue wait is flagged for admin review. The order stays assigned."
-          }
-        },
-        {
-          "name": "Resume from Parts (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/resume", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "resume"] },
-            "description": "Assigned technician returns with the part and resumes the job (waiting_for_parts -> in_progress)."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Closure",
-      "item": [
-        {
-          "name": "Request Closure (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/request", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "request"] },
-            "description": "Assigned technician signals the work is done. The server mints a code (valid 10 min) for the client. The code is NOT returned to the technician — they receive it verbally from the client (SRS note 4)."
-          }
-        },
-        {
-          "name": "Get Closure Code (client)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.code) { pm.collectionVariables.set('closure_code', json.code); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/code", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "code"] },
-            "description": "Client reads their active closure code and shares it with the technician in person. Auto-saves it to {{closure_code}} for convenience. 404 if the technician hasn't requested closure yet."
-          }
-        },
-        {
-          "name": "Verify Closure (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"code\": \"{{closure_code}}\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/closure/verify", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "closure", "verify"] },
-            "description": "Assigned technician submits the code to complete the job. Order -> completed and a 48h dispute window opens; held funds release automatically after it (release cron)."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Disputes",
-      "item": [
-        {
-          "name": "Raise Dispute (client)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.data && json.data.id) { pm.collectionVariables.set('dispute_id', json.data.id); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                { "key": "reason", "value": "fault_returned", "type": "text" },
-                { "key": "description", "value": "The tap is leaking again the next day.", "type": "text" },
-                { "key": "photos[]", "type": "file", "src": [] }
-              ]
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/dispute", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "dispute"] },
-            "description": "Client raises a dispute (multipart/form-data). Valid in two moments: during the closure review window (order still in_progress, tech has requested closure) to catch on-site damage, OR during the 48h held window after completion. Order -> disputed, which freezes the release cron. reason: fault_returned | home_damage | different_part | other. photos[] is OPTIONAL — up to 5 image evidence files (jpg/jpeg/png/webp, ≤4MB each), returned in data.photos and viewable via /api/order-photos/{id}. Auto-saves the new id to {{dispute_id}}."
-          }
-        },
-        {
-          "name": "Resolve Dispute (admin)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"resolution\": \"partial_refund\",\n  \"refund_amount\": \"40.00\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/disputes/{{dispute_id}}/resolve", "host": ["{{base_url}}"], "path": ["api", "disputes", "{{dispute_id}}", "resolve"] },
-            "description": "Admin-only. resolution: full_refund | partial_refund | release_to_technician (warranty_order not implemented yet). refund_amount is required for partial_refund and is refunded to the client FIFO across held payments; the remainder is released to the technician (minus commission). Order -> resolved."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reviews & Warranty",
-      "item": [
-        {
-          "name": "Leave Review (client)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"cleanliness\": 5,\n  \"quality\": 4,\n  \"price_rating\": 5,\n  \"comment\": \"On time and tidy.\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/review", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "review"] },
-            "description": "Client rates a completed (or resolved) order once. cleanliness/quality/price_rating are 1-5. A low price_rating (<=2) sets price_anomaly_flag server-side. 409 if not completed or already reviewed."
-          }
-        },
-        {
-          "name": "Claim Warranty (client)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": [
-                "const json = pm.response.json();",
-                "if (json.data && json.data.id) { pm.collectionVariables.set('warranty_order_id', json.data.id); }"
-              ] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"description\": \"The same fault came back.\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/warranty-claim", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "warranty-claim"] },
-            "description": "Client claims the warranty within warranty_until. Spawns a same-technician, zero-labor warranty order (kind=warranty, parent_order_id set, status in_progress). 409 if the warranty expired, order isn't completed, or a warranty visit already exists. Saves the new order id to {{warranty_order_id}}."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Cancellation & No-show",
-      "item": [
-        {
-          "name": "Cancel Order (client)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/cancel", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "cancel"] },
-            "description": "Client cancels. Pending -> full inspection-fee refund. Accepted/Scheduled -> late cancel: the tech keeps cancel_fee_share (30%), the rest is refunded and the appointment is freed. 409 once the order is in_progress or beyond."
-          }
-        },
-        {
-          "name": "Withdraw (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/withdraw", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "withdraw"] },
-            "description": "Assigned tech drops an accepted/scheduled job. Frees the slot, returns the order to Pending and re-dispatches to the next technician (inspection fee stays held). 409 if the job is already in progress."
-          }
-        },
-        {
-          "name": "Report Client No-show (technician)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/client", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "no-show", "client"] },
-            "description": "Assigned tech reports the client was absent on-site (order must be accepted / tech on-site). The system does NOT pay out — no status change, the inspection fee stays held. It raises a client-no-show claim for admin review; an admin then resolves it. One open claim per order."
-          }
-        },
-        {
-          "name": "Report Technician No-show (client)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/technician", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "no-show", "technician"] },
-            "description": "Client reports a suspected technician no-show (order must be accepted). The system does NOT act — no refund, no status change. It raises a flag for admin review; an admin then resolves it. One open report per order."
-          }
-        },
-        {
-          "name": "Resolve No-show (admin)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"outcome\": \"confirmed\",\n  \"note\": \"Tech confirmed no-show after phone contact\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/api/admin/orders/{{order_id}}/no-show/resolve", "host": ["{{base_url}}"], "path": ["api", "admin", "orders", "{{order_id}}", "no-show", "resolve"] },
-            "description": "Admin resolves a reported no-show (technician OR client), routing by the open claim on the order. outcome=dismissed → nothing moves, the order carries on. outcome=confirmed → a technician no-show refunds the client in full; a client no-show releases the full inspection fee to the technician. Either way the order closes as no_show and the flag is upheld."
-          }
-        }
-      ]
-    }
+ "info": {
+  "name": "Home Maintenance API",
+  "description": "Domain-organized collection. Set {{base_url}}; login/register auto-saves {{token}} for authed requests.",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "auth": {
+  "type": "bearer",
+  "bearer": [
+   {
+    "key": "token",
+    "value": "{{token}}",
+    "type": "string"
+   }
   ]
+ },
+ "variable": [
+  {
+   "key": "base_url",
+   "value": "https://home-maintenance.me",
+   "type": "string"
+  },
+  {
+   "key": "token",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "otp_code",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "reset_code",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "order_id",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "technician_id",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "offer_id",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "quote_id",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "closure_code",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "dispute_id",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "warranty_order_id",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "flag_id",
+   "value": "",
+   "type": "string"
+  }
+ ],
+ "item": [
+  {
+   "name": "Auth",
+   "item": [
+    {
+     "name": "Register — Start (send OTP)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.debug_code) { pm.collectionVariables.set('otp_code', json.debug_code); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"phone\": \"0912345678\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/register/start",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "register",
+        "start"
+       ]
+      },
+      "description": "Validates the phone and sends a 4-digit OTP. In dev (SMS_DRIVER=log) read it from storage/logs/laravel.log."
+     }
+    },
+    {
+     "name": "Register — Verify OTP (get ticket)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.ticket) { pm.collectionVariables.set('register_ticket', json.ticket); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"{{otp_code}}\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/register/verify",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "register",
+        "verify"
+       ]
+      },
+      "description": "Consumes the OTP and returns a short-lived, single-use verification ticket (auto-saved to {{register_ticket}}). Does NOT create the account — feed the ticket into Register — Client or Technician > Register Technician."
+     }
+    },
+    {
+     "name": "Register — Client (create account)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "phone",
+         "value": "0912345678",
+         "type": "text"
+        },
+        {
+         "key": "name",
+         "value": "Test Client",
+         "type": "text"
+        },
+        {
+         "key": "password",
+         "value": "Password123",
+         "type": "text"
+        },
+        {
+         "key": "password_confirmation",
+         "value": "Password123",
+         "type": "text"
+        },
+        {
+         "key": "ticket",
+         "value": "{{register_ticket}}",
+         "type": "text"
+        },
+        {
+         "key": "profile_photo",
+         "type": "file",
+         "src": [],
+         "description": "Optional profile photo (image only, max 4 MB)."
+        }
+       ]
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/register/client",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "register",
+        "client"
+       ]
+      },
+      "description": "Multipart form-data. Redeems {{register_ticket}} (from Verify OTP), creates a client + wallet, returns a token (auto-saved to {{token}}). profile_photo is optional (image only) — attach a file to include it."
+     }
+    },
+    {
+     "name": "Login",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/login",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "login"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Me",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/auth/me",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "me"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Logout",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/auth/logout",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "logout"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Delete Account",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"password\": \"Password123\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/account",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "account"
+       ]
+      },
+      "description": "Permanently closes the signed-in account: confirm with the current password. Revokes every token, takes a technician offline, and soft-deletes the record (login is then blocked). Requires the bearer {{token}}."
+     }
+    },
+    {
+     "name": "Password — Forgot",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.debug_code) { pm.collectionVariables.set('reset_code', json.debug_code); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"phone\": \"0912345678\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/password/forgot",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "password",
+        "forgot"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Password — Verify OTP (get ticket)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.ticket) { pm.collectionVariables.set('reset_ticket', json.ticket); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"phone\": \"0912345678\",\n  \"code\": \"{{reset_code}}\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/password/verify",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "password",
+        "verify"
+       ]
+      },
+      "description": "Consumes the reset OTP and returns a short-lived, single-use ticket (auto-saved to {{reset_ticket}}). Feed it into Password — Reset."
+     }
+    },
+    {
+     "name": "Password — Reset",
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"phone\": \"0912345678\",\n  \"password\": \"NewPass123\",\n  \"password_confirmation\": \"NewPass123\",\n  \"ticket\": \"{{reset_ticket}}\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/password/reset",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "password",
+        "reset"
+       ]
+      },
+      "description": "Redeems {{reset_ticket}} (from Password — Verify OTP), sets the new password, and revokes all sessions."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Wallet",
+   "item": [
+    {
+     "name": "Get Wallet",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/wallet",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "wallet"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Top Up",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"amount\": \"50.00\",\n  \"gateway_reference\": \"gw-{{$timestamp}}\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/wallet/top-up",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "wallet",
+        "top-up"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "Devices",
+   "item": [
+    {
+     "name": "Register Device Token",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"token\": \"fcm-device-token\",\n  \"platform\": \"android\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/device-tokens",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "device-tokens"
+       ]
+      },
+      "description": "Register (or move) an FCM device token for the authenticated user. Call on login/app-start and whenever the token changes. platform: android | ios | web. updateOrCreate on the token — re-registering updates instead of duplicating, and a token moves to the new user on a shared device."
+     }
+    },
+    {
+     "name": "Delete Device Token",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"token\": \"fcm-device-token\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/device-tokens",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "device-tokens"
+       ]
+      },
+      "description": "Remove a device token (call on logout). Only deletes a token owned by the current user."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Catalog",
+   "item": [
+    {
+     "name": "List Service Categories",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/categories",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "categories"
+       ]
+      },
+      "description": "Public (no auth) — powers the guest home screen. Returns active top-level service categories, each with active children nested. Every category includes icon_url (an Iconify Material Design SVG, e.g. https://api.iconify.design/mdi/flash.svg) and guide_price."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Addresses",
+   "item": [
+    {
+     "name": "List My Addresses",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/addresses",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "addresses"
+       ]
+      },
+      "description": "PLANNED — the authenticated client's saved addresses."
+     }
+    },
+    {
+     "name": "Create Address",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"label\": \"Home\",\n  \"lat\": 33.5138,\n  \"lng\": 36.2765,\n  \"building_no\": \"12\",\n  \"floor\": \"3\",\n  \"notes\": \"Near the pharmacy\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/addresses",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "addresses"
+       ]
+      },
+      "description": "PLANNED — create a new client address."
+     }
+    },
+    {
+     "name": "Update Address",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"label\": \"Work\",\n  \"lat\": 33.5100,\n  \"lng\": 36.2900,\n  \"building_no\": \"5\",\n  \"floor\": \"1\",\n  \"notes\": \"Office building\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/addresses/1",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "addresses",
+        "1"
+       ]
+      },
+      "description": "PLANNED — update an address by id."
+     }
+    },
+    {
+     "name": "Delete Address",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/addresses/1",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "addresses",
+        "1"
+       ]
+      },
+      "description": "PLANNED — delete an address by id."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Orders",
+   "item": [
+    {
+     "name": "Create Order",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.data && json.data.id) { pm.collectionVariables.set('order_id', json.data.id); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "operation_id",
+         "value": "{{$guid}}",
+         "type": "text"
+        },
+        {
+         "key": "service_category_id",
+         "value": "1",
+         "type": "text"
+        },
+        {
+         "key": "address_id",
+         "value": "1",
+         "type": "text"
+        },
+        {
+         "key": "type",
+         "value": "urgent",
+         "type": "text"
+        },
+        {
+         "key": "description",
+         "value": "Leaking sink",
+         "type": "text"
+        },
+        {
+         "key": "scheduled_at",
+         "value": "",
+         "type": "text",
+         "disabled": true,
+         "description": "Required only when type=scheduled. A future ISO datetime, e.g. 2026-08-20T14:00:00Z."
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": [],
+         "description": "Optional flaw photos (max 3, images only). Enable the extra rows to attach several."
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": [],
+         "disabled": true
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": [],
+         "disabled": true
+        }
+       ]
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders"
+       ]
+      },
+      "description": "Multipart form-data. Creates an order and holds the inspection fee in escrow. Requires a funded wallet (top up first). Auto-saves the new id to {{order_id}}. For a scheduled order, set type=scheduled and enable scheduled_at (a future ISO datetime).\n\noperation_id is an idempotency token: reuse the SAME value to retry safely (a repeat returns the same order, the fee is held once). {{$guid}} generates a fresh one on each send — pin it to a fixed value to test idempotency.\n\nphotos[] are optional flaw photos (max 3, images only). Attach files to the photos[] rows; enable the extra rows to send more than one."
+     }
+    },
+    {
+     "name": "List My Orders",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Get Order",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "Technician",
+   "item": [
+    {
+     "name": "Register Technician",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "phone",
+         "value": "0913333333",
+         "type": "text"
+        },
+        {
+         "key": "name",
+         "value": "Tech Guy",
+         "type": "text"
+        },
+        {
+         "key": "password",
+         "value": "Password123",
+         "type": "text"
+        },
+        {
+         "key": "password_confirmation",
+         "value": "Password123",
+         "type": "text"
+        },
+        {
+         "key": "charter_accepted",
+         "value": "true",
+         "type": "text"
+        },
+        {
+         "key": "ticket",
+         "value": "{{register_ticket}}",
+         "type": "text"
+        },
+        {
+         "key": "id_front",
+         "type": "file",
+         "src": []
+        },
+        {
+         "key": "id_back",
+         "type": "file",
+         "src": []
+        },
+        {
+         "key": "selfie",
+         "type": "file",
+         "src": []
+        },
+        {
+         "key": "profile_photo",
+         "type": "file",
+         "src": [],
+         "description": "Optional profile photo (image only, max 4 MB)."
+        }
+       ]
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/register/technician",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "register",
+        "technician"
+       ]
+      },
+      "description": "Multipart form-data. First run Auth > Register — Start (phone 0913333333) then Register — Verify OTP so {{register_ticket}} is set. Attach id_front, id_back, selfie image files. Redeems the ticket, creates a technician (status=pending) and logs you in (saves {{token}}). profile_photo is optional (image only)."
+     }
+    },
+    {
+     "name": "Approve Technician (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/approve",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "technicians",
+        "{{technician_id}}",
+        "approve"
+       ]
+      },
+      "description": "Admin only. Log in as an admin (Auth > Login) so {{token}} is an admin token, set {{technician_id}}, then approve → status active."
+     }
+    },
+    {
+     "name": "Suspend Technician (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"note\": \"Repeated withdrawals over two weeks.\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/suspend",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "technicians",
+        "{{technician_id}}",
+        "suspend"
+       ]
+      },
+      "description": "Admin only. Sanction for reliability failures: status → probation with a capped daily order limit and taken offline. Also resolves that tech's open flags with outcome=suspended (+ optional note). Re-approve to reinstate."
+     }
+    },
+    {
+     "name": "Ban Technician (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"note\": \"Multiple no-shows; removed.\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/ban",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "technicians",
+        "{{technician_id}}",
+        "ban"
+       ]
+      },
+      "description": "Admin only. status → banned and taken offline (removed from anywhere). Also resolves that tech's open flags with outcome=banned (+ optional note)."
+     }
+    },
+    {
+     "name": "List Technician Flags (admin)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.data && json.data[0]) { pm.collectionVariables.set('flag_id', json.data[0].id); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/technician-flags",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "technician-flags"
+       ]
+      },
+      "description": "Admin only. The queue of open reliability offenses (no-show / withdrawal) awaiting assessment, newest first. Saves the first id to {{flag_id}}."
+     }
+    },
+    {
+     "name": "Review Technician Flag (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"note\": \"First offense — warning only.\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/admin/technician-flags/{{flag_id}}/review",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "technician-flags",
+        "{{flag_id}}",
+        "review"
+       ]
+      },
+      "description": "Admin only. Marks a flag reviewed (dismiss / acknowledge) with an optional note. For an actual sanction, use suspend/ban (which also clears the tech's open flags)."
+     }
+    },
+    {
+     "name": "Technician — Me",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/me",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "me"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Technician — Set Services",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"service_category_ids\": [1, 2]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/technician/services",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "services"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Technician — Set Availability",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"is_available\": true,\n  \"current_lat\": 33.5138,\n  \"current_lng\": 36.2765\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/technician/availability",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "availability"
+       ]
+      }
+     }
+    },
+    {
+     "name": "Technician — My Offers",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.data && json.data[0]) { pm.collectionVariables.set('offer_id', json.data[0].id); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/offers",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "offers"
+       ]
+      },
+      "description": "Open dispatch offers for the logged-in technician. Auto-saves the first offer's id to {{offer_id}}."
+     }
+    },
+    {
+     "name": "Technician — Accept Offer",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/accept",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "offers",
+        "{{offer_id}}",
+        "accept"
+       ]
+      },
+      "description": "Atomically take the job. 409 if the order was already taken or the offer expired."
+     }
+    },
+    {
+     "name": "Technician — Decline Offer",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"reason\": \"busy\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/technician/offers/{{offer_id}}/decline",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "offers",
+        "{{offer_id}}",
+        "decline"
+       ]
+      },
+      "description": "Decline and re-offer the order to the next nearest technician."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Quotes",
+   "item": [
+    {
+     "name": "Send Quote (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"labor_cost\": \"80.00\",\n  \"warranty_days\": 30,\n  \"justification\": null,\n  \"parts\": [\n    { \"name\": \"Valve\", \"price\": \"20.00\", \"classification\": \"standard\", \"image_url\": \"https://example.com/part.jpg\" }\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/quotes",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "quotes"
+       ]
+      },
+      "description": "Assigned technician sends the initial quote (labor + parts). Order must be 'accepted'. A justification is required when the total exceeds the category guide price x the anomaly multiplier."
+     }
+    },
+    {
+     "name": "List Quotes",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.data && json.data[0]) { pm.collectionVariables.set('quote_id', json.data[0].id); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/quotes",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "quotes"
+       ]
+      },
+      "description": "Client or assigned technician lists the order's quotes. Auto-saves the newest quote id to {{quote_id}}."
+     }
+    },
+    {
+     "name": "Approve Quote (client)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/quotes/{{quote_id}}/approve",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "quotes",
+        "{{quote_id}}",
+        "approve"
+       ]
+      },
+      "description": "Client approves -> holds the repair fee in escrow and moves the order to in_progress. 422 if the wallet can't cover it."
+     }
+    },
+    {
+     "name": "Reject Quote (client)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/quotes/{{quote_id}}/reject",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "quotes",
+        "{{quote_id}}",
+        "reject"
+       ]
+      },
+      "description": "Client rejects -> order closes as inspection_only."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Order Lifecycle (technician)",
+   "item": [
+    {
+     "name": "Mark Arrival (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"lat\": 33.5,\n  \"lng\": 36.3\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/arrive",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "arrive"
+       ]
+      },
+      "description": "Assigned technician marks on-site arrival. The server verifies the GPS is within arrival_radius_meters (default 50m) of the order location; 422 if out of range. Required before a quote can be sent."
+     }
+    },
+    {
+     "name": "Waiting for Parts (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"note\": \"Ordering a compressor, ~2 days\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/waiting-for-parts",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "waiting-for-parts"
+       ]
+      },
+      "description": "Assigned technician pauses an in-progress order to source a part (in_progress -> waiting_for_parts). Stamps a deadline (parts_wait_max_hours, default 72h); an overdue wait is flagged for admin review. The order stays assigned."
+     }
+    },
+    {
+     "name": "Resume from Parts (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/resume",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "resume"
+       ]
+      },
+      "description": "Assigned technician returns with the part and resumes the job (waiting_for_parts -> in_progress)."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Closure",
+   "item": [
+    {
+     "name": "Request Closure (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/closure/request",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "closure",
+        "request"
+       ]
+      },
+      "description": "Assigned technician signals the work is done. The server mints a code (valid 10 min) for the client. The code is NOT returned to the technician — they receive it verbally from the client (SRS note 4)."
+     }
+    },
+    {
+     "name": "Get Closure Code (client)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.code) { pm.collectionVariables.set('closure_code', json.code); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/closure/code",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "closure",
+        "code"
+       ]
+      },
+      "description": "Client reads their active closure code and shares it with the technician in person. Auto-saves it to {{closure_code}} for convenience. 404 if the technician hasn't requested closure yet."
+     }
+    },
+    {
+     "name": "Verify Closure (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"code\": \"{{closure_code}}\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/closure/verify",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "closure",
+        "verify"
+       ]
+      },
+      "description": "Assigned technician submits the code to complete the job. Order -> completed and a 48h dispute window opens; held funds release automatically after it (release cron)."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Disputes",
+   "item": [
+    {
+     "name": "Raise Dispute (client)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.data && json.data.id) { pm.collectionVariables.set('dispute_id', json.data.id); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "reason",
+         "value": "fault_returned",
+         "type": "text"
+        },
+        {
+         "key": "description",
+         "value": "The tap is leaking again the next day.",
+         "type": "text"
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": []
+        }
+       ]
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/dispute",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "dispute"
+       ]
+      },
+      "description": "Client raises a dispute (multipart/form-data). Valid in two moments: during the closure review window (order still in_progress, tech has requested closure) to catch on-site damage, OR during the 48h held window after completion. Order -> disputed, which freezes the release cron. reason: fault_returned | home_damage | different_part | other. photos[] is OPTIONAL — up to 5 image evidence files (jpg/jpeg/png/webp, ≤4MB each), returned in data.photos and viewable via /api/order-photos/{id}. Auto-saves the new id to {{dispute_id}}."
+     }
+    },
+    {
+     "name": "Resolve Dispute (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"resolution\": \"partial_refund\",\n  \"refund_amount\": \"40.00\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/disputes/{{dispute_id}}/resolve",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "disputes",
+        "{{dispute_id}}",
+        "resolve"
+       ]
+      },
+      "description": "Admin-only. resolution: full_refund | partial_refund | release_to_technician (warranty_order not implemented yet). refund_amount is required for partial_refund and is refunded to the client FIFO across held payments; the remainder is released to the technician (minus commission). Order -> resolved."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Reviews & Warranty",
+   "item": [
+    {
+     "name": "Leave Review (client)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"cleanliness\": 5,\n  \"quality\": 4,\n  \"price_rating\": 5,\n  \"comment\": \"On time and tidy.\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/review",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "review"
+       ]
+      },
+      "description": "Client rates a completed (or resolved) order once. cleanliness/quality/price_rating are 1-5. A low price_rating (<=2) sets price_anomaly_flag server-side. 409 if not completed or already reviewed."
+     }
+    },
+    {
+     "name": "Claim Warranty (client)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const json = pm.response.json();",
+         "if (json.data && json.data.id) { pm.collectionVariables.set('warranty_order_id', json.data.id); }"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"description\": \"The same fault came back.\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/warranty-claim",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "warranty-claim"
+       ]
+      },
+      "description": "Client claims the warranty within warranty_until. Spawns a same-technician, zero-labor warranty order (kind=warranty, parent_order_id set, status in_progress). 409 if the warranty expired, order isn't completed, or a warranty visit already exists. Saves the new order id to {{warranty_order_id}}."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Cancellation & No-show",
+   "item": [
+    {
+     "name": "Cancel Order (client)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/cancel",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "cancel"
+       ]
+      },
+      "description": "Client cancels. Pending -> full inspection-fee refund. Accepted/Scheduled -> late cancel: the tech keeps cancel_fee_share (30%), the rest is refunded and the appointment is freed. 409 once the order is in_progress or beyond."
+     }
+    },
+    {
+     "name": "Withdraw (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/withdraw",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "withdraw"
+       ]
+      },
+      "description": "Assigned tech drops an accepted/scheduled job. Frees the slot, returns the order to Pending and re-dispatches to the next technician (inspection fee stays held). 409 if the job is already in progress."
+     }
+    },
+    {
+     "name": "Report Client No-show (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/client",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "no-show",
+        "client"
+       ]
+      },
+      "description": "Assigned tech reports the client was absent on-site (order must be accepted / tech on-site). The system does NOT pay out — no status change, the inspection fee stays held. It raises a client-no-show claim for admin review; an admin then resolves it. One open claim per order."
+     }
+    },
+    {
+     "name": "Report Technician No-show (client)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/no-show/technician",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "no-show",
+        "technician"
+       ]
+      },
+      "description": "Client reports a suspected technician no-show (order must be accepted). The system does NOT act — no refund, no status change. It raises a flag for admin review; an admin then resolves it. One open report per order."
+     }
+    },
+    {
+     "name": "Resolve No-show (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"outcome\": \"confirmed\",\n  \"note\": \"Tech confirmed no-show after phone contact\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/admin/orders/{{order_id}}/no-show/resolve",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "orders",
+        "{{order_id}}",
+        "no-show",
+        "resolve"
+       ]
+      },
+      "description": "Admin resolves a reported no-show (technician OR client), routing by the open claim on the order. outcome=dismissed → nothing moves, the order carries on. outcome=confirmed → a technician no-show refunds the client in full; a client no-show releases the full inspection fee to the technician. Either way the order closes as no_show and the flag is upheld."
+     }
+    }
+   ]
+  }
+ ]
 }

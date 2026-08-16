@@ -31,6 +31,8 @@ class TechnicianRegisterRequest extends FormRequest
             'id_front' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'id_back' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'selfie' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Optional profile photo (private disk).
+            'profile_photo' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }
