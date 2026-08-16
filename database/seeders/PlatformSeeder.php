@@ -18,7 +18,7 @@ class PlatformSeeder extends Seeder
         $platformUser = User::firstOrCreate(
             ['phone' => '0999999999'],
             [
-                'name' => 'Platform User',
+                'name' => 'حساب المنصة',
                 'password' => Random::generate(40), // hashed by cast
                 'role' => UserRole::Platform,
             ],
