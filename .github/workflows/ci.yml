@@ -100,20 +100,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pushes the repo collection to Postman cloud but preserves example responses
+      # saved in the app (see scripts/sync_postman.py) — a plain PUT would wipe them.
       - name: Sync collection to Postman cloud
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
-          COLLECTION_UID: ${{ secrets.POSTMAN_COLLECTION_UID }}
-        run: |
-          if [ -z "$POSTMAN_API_KEY" ] || [ -z "$COLLECTION_UID" ]; then
-            echo "Postman secrets not set — skipping sync."; exit 0
-          fi
-          jq -n --slurpfile c docs/postman/HomeMaintenance.postman_collection.json \
-            '{collection: $c[0]}' > payload.json
-          code=$(curl -sS -o resp.json -w "%{http_code}" -X PUT \
-            "https://api.getpostman.com/collections/${COLLECTION_UID}" \
-            -H "X-Api-Key: ${POSTMAN_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d @payload.json)
-          echo "HTTP $code"; jq '.collection.uid // .error // .' resp.json
-          [ "$code" = "200" ] || { echo "Postman sync failed"; exit 1; }
+          POSTMAN_COLLECTION_UID: ${{ secrets.POSTMAN_COLLECTION_UID }}
+        run: python3 scripts/sync_postman.py
