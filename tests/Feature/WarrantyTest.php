@@ -154,7 +154,7 @@ class WarrantyTest extends TestCase
         ]);
     }
 
-    public function test_claim_is_rejected_when_the_tech_is_busy_at_that_time(): void
+    public function test_claim_falls_back_to_the_pool_when_the_original_tech_is_busy(): void
     {
         [$order, $client, $tech] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
         $when = $this->when();
@@ -169,11 +169,20 @@ class WarrantyTest extends TestCase
             'status' => AppointmentStatus::Confirmed,
         ]);
 
+        // The claim no longer fails: the visit is created and sent to the pool for a substitute.
         $this->actingAs($client, 'sanctum')
             ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $when->toDateTimeString()])
-            ->assertStatus(409);
+            ->assertCreated()
+            ->assertJsonPath('data.kind', 'warranty');
 
-        $this->assertDatabaseMissing('orders', ['parent_order_id' => $order->id, 'kind' => 'warranty']);
+        $warranty = Order::where('parent_order_id', $order->id)->firstOrFail();
+        $this->assertSame(OrderStatus::Pending, $warranty->status);
+        $this->assertNull($warranty->technician_id);
+        // The original tech was NOT booked (they were busy).
+        $this->assertDatabaseMissing('appointments', ['order_id' => $warranty->id]);
+        $this->assertDatabaseHas('order_events', [
+            'order_id' => $warranty->id, 'event_type' => 'warranty_reassigned',
+        ]);
     }
 
     public function test_activating_a_warranty_appointment_puts_the_order_in_progress(): void

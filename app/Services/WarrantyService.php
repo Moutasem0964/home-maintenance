@@ -20,16 +20,18 @@ class WarrantyService
 {
     public function __construct(
         private readonly SchedulingService $schedulingService,
+        private readonly AssignmentService $assignmentService,
         private readonly NotificationService $notificationService,
     ) {}
 
     /**
      * Client claims the warranty on a completed order: spawns a follow-up visit at zero cost
-     * (kind = warranty, no escrow hold), linked back via parent_order_id. The client picks the
-     * revisit time, and the ORIGINAL technician is booked into that slot (a self-accepted
-     * scheduled visit — they owe the fix). If the original tech is booked or gone at that time,
-     * reassignment to a paid substitute is handled in a later slice. A single warranty visit per
-     * order keeps it from being abused.
+     * to the client (kind = warranty, no escrow hold), linked back via parent_order_id. The
+     * client picks the revisit time, and the ORIGINAL technician is booked into that slot (a
+     * self-accepted scheduled visit — they owe the fix). If the original tech is booked or gone
+     * at that time, the visit is instead dispatched to the pool for a paid substitute (the
+     * platform honours the guarantee and pays the substitute the original labor cost later).
+     * A single warranty visit per order keeps it from being abused.
      */
     public function claim(Order $parent, User $client, Carbon $scheduledAt, ?string $description): Order
     {
@@ -53,12 +55,6 @@ class WarrantyService
                 throw new \DomainException('A warranty visit has already been requested for this order.');
             }
 
-            /** @var Technician $tech */
-            $tech = Technician::findOrFail($locked->technician_id);
-            if ($tech->status === TechnicianStatus::Banned) {
-                throw new \DomainException('The original technician is no longer available; please contact support.');
-            }
-
             /** @var Order $warranty */
             $warranty = Order::create([
                 'client_id' => $locked->client_id,
@@ -78,26 +74,69 @@ class WarrantyService
                 'inspection_fee' => '0.00',
             ]);
 
-            // Book the original tech into the client's chosen slot (they can't refuse — they owe
-            // the warranty). book() rejects a conflicting slot, surfaced as a clean 409.
-            try {
-                $this->schedulingService->book($warranty, $locked->technician_id);
-            } catch (OfferUnavailableException) {
-                throw new \DomainException('The technician is already booked at that time — please pick another.');
-            }
-
             OrderEvent::create(['order_id' => $warranty->id, 'event_type' => OrderEventType::Created]);
             OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::WarrantyClaimed]);
 
-            $this->notificationService->notify(
-                $tech->user,
-                NotificationCategory::Orders,
-                'زيارة ضمان مجدولة',
-                'تمت جدولة زيارة ضمان على أحد طلباتك — يُرجى الالتزام بالموعد.',
-                $warranty,
-            );
+            /** @var Technician|null $tech */
+            $tech = Technician::find($locked->technician_id);
+
+            // Try to book the original tech into the client's chosen slot (they can't refuse — they
+            // owe the warranty). If they're booked at that time, or no longer eligible, we don't fail
+            // the claim: the visit goes to the pool for a paid substitute at the SAME slot.
+            if ($tech !== null && in_array($tech->status, [TechnicianStatus::Active, TechnicianStatus::Probation], true)) {
+                try {
+                    $this->schedulingService->book($warranty, $locked->technician_id);
+
+                    $this->notificationService->notify(
+                        $tech->user,
+                        NotificationCategory::Orders,
+                        'زيارة ضمان مجدولة',
+                        'تمت جدولة زيارة ضمان على أحد طلباتك — يُرجى الالتزام بالموعد.',
+                        $warranty,
+                    );
+
+                    return $warranty;
+                } catch (OfferUnavailableException) {
+                    // fall through to pool dispatch at the same requested time
+                }
+            }
+
+            $this->reassignToPool($warranty, asap: false);
 
             return $warranty;
         });
+    }
+
+    /**
+     * Send a warranty visit to the dispatch pool for a paid substitute. Frees any slot booked
+     * to the previous technician, detaches them, returns the order to Pending, and offers it to
+     * the next qualified technician. When $asap is true (the booked tech no-showed and the slot
+     * has passed) the visit is converted to an urgent dispatch so a substitute is found now;
+     * otherwise it keeps the client's originally chosen scheduled time. The caller must already
+     * hold the order lock. A Pending warranty order is never expired by the pending sweep, so it
+     * waits for a substitute indefinitely — the platform's guarantee.
+     */
+    public function reassignToPool(Order $warranty, bool $asap): void
+    {
+        $this->schedulingService->cancelFor($warranty);
+
+        $updates = ['technician_id' => null, 'status' => OrderStatus::Pending];
+        if ($asap) {
+            $updates['type'] = OrderType::Urgent;
+            $updates['scheduled_at'] = null;
+        }
+        $warranty->update($updates);
+
+        OrderEvent::create(['order_id' => $warranty->id, 'event_type' => OrderEventType::WarrantyReassigned]);
+
+        $this->assignmentService->offerToNext($warranty);
+
+        $this->notificationService->notify(
+            $warranty->client,
+            NotificationCategory::Orders,
+            'جارٍ إيجاد فني بديل',
+            'تعذّر حضور الفني الأصلي لزيارة الضمان — نبحث لك عن فني بديل دون أي تكلفة إضافية عليك.',
+            $warranty,
+        );
     }
 }

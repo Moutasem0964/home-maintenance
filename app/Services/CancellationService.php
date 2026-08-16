@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderEventType;
+use App\Enums\OrderKind;
 use App\Enums\OrderStatus;
 use App\Enums\TechnicianFlagOutcome;
 use App\Enums\TechnicianFlagReason;
@@ -21,6 +22,7 @@ class CancellationService
         private readonly SchedulingService $schedulingService,
         private readonly AssignmentService $assignmentService,
         private readonly TechnicianFlagService $flagService,
+        private readonly WarrantyService $warrantyService,
     ) {}
 
     /**
@@ -158,7 +160,11 @@ class CancellationService
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-            if ($locked->status !== OrderStatus::Accepted) {
+            // A normal order is reported before it starts (Accepted). A warranty visit has no
+            // quote step, so activation drops it straight to InProgress — that is the window in
+            // which a no-show for the booked warranty tech is reported.
+            $warrantyInProgress = $locked->kind === OrderKind::Warranty && $locked->status === OrderStatus::InProgress;
+            if ($locked->status !== OrderStatus::Accepted && ! $warrantyInProgress) {
                 throw new \DomainException('A no-show can only be reported for an accepted, un-started job.');
             }
 
@@ -196,22 +202,35 @@ class CancellationService
             }
 
             if ($confirmed) {
-                if ($locked->status !== OrderStatus::Accepted) {
+                $warrantyNoShow = $locked->kind === OrderKind::Warranty
+                    && $flag->reason === TechnicianFlagReason::NoShow;
+
+                // A warranty visit is reported in-progress; every other no-show is reported
+                // before the job starts (Accepted).
+                $closable = $warrantyNoShow
+                    ? $locked->status === OrderStatus::InProgress
+                    : $locked->status === OrderStatus::Accepted;
+                if (! $closable) {
                     throw new \DomainException('This order can no longer be closed as a no-show.');
                 }
 
-                if ($flag->reason === TechnicianFlagReason::NoShow) {
+                if ($warrantyNoShow) {
+                    // The booked (original) warranty tech didn't show. There's no client money to
+                    // refund — the platform owes the fix. Reassign the visit to the pool ASAP for a
+                    // paid substitute; the order lives on rather than closing as a no-show.
+                    $this->warrantyService->reassignToPool($locked, asap: true);
+                } elseif ($flag->reason === TechnicianFlagReason::NoShow) {
                     // Technician confirmed absent → refund the client in full, free any slot.
                     $this->escrowService->refundOrder($locked, "noshow:confirm:{$locked->id}");
                     $this->schedulingService->cancelFor($locked);
                     $locked->update(['status' => OrderStatus::NoShow]);
+                    OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
                 } else {
                     // Client confirmed absent → release the full inspection fee to the technician.
                     $locked->update(['status' => OrderStatus::NoShow]);
                     $this->escrowService->releaseFunds($locked, "noshow:client:confirm:{$locked->id}");
+                    OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
                 }
-
-                OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::NoShow]);
             }
 
             $this->flagService->resolve(
