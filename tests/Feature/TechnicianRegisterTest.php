@@ -109,6 +109,19 @@ class TechnicianRegisterTest extends TestCase
         $this->assertDatabaseCount('technicians', 0);
     }
 
+    public function test_registration_stores_an_optional_profile_photo(): void
+    {
+        $ticket = $this->verifiedTicket();
+
+        $this->post('/api/auth/register/technician', $this->payload($ticket, [
+            'profile_photo' => UploadedFile::fake()->image('me.jpg'),
+        ]), ['Accept' => 'application/json'])->assertCreated();
+
+        $user = User::where('phone', '+9639'.substr($this->phone, -8))->firstOrFail();
+        $this->assertNotNull($user->profile_image_url);
+        Storage::disk('local')->assertExists($user->profile_image_url);
+    }
+
     public function test_registration_rejects_an_invalid_ticket(): void
     {
         $this->verifiedTicket(); // a real ticket exists, but we present a bogus one

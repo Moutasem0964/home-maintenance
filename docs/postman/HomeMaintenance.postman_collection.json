@@ -204,13 +204,40 @@
        }
       ],
       "body": {
-       "mode": "raw",
-       "options": {
-        "raw": {
-         "language": "json"
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "phone",
+         "value": "0912345678",
+         "type": "text"
+        },
+        {
+         "key": "name",
+         "value": "Test Client",
+         "type": "text"
+        },
+        {
+         "key": "password",
+         "value": "Password123",
+         "type": "text"
+        },
+        {
+         "key": "password_confirmation",
+         "value": "Password123",
+         "type": "text"
+        },
+        {
+         "key": "ticket",
+         "value": "{{register_ticket}}",
+         "type": "text"
+        },
+        {
+         "key": "profile_photo",
+         "type": "file",
+         "src": [],
+         "description": "Optional profile photo (image only, max 4 MB)."
         }
-       },
-       "raw": "{\n  \"phone\": \"0912345678\",\n  \"name\": \"Test Client\",\n  \"password\": \"Password123\",\n  \"password_confirmation\": \"Password123\",\n  \"ticket\": \"{{register_ticket}}\"\n}"
+       ]
       },
       "url": {
        "raw": "{{base_url}}/api/auth/register/client",
@@ -224,7 +251,7 @@
         "client"
        ]
       },
-      "description": "Redeems {{register_ticket}} (from Verify OTP), creates a client + wallet, returns a token (auto-saved to {{token}})."
+      "description": "Multipart form-data. Redeems {{register_ticket}} (from Verify OTP), creates a client + wallet, returns a token (auto-saved to {{token}}). profile_photo is optional (image only) — attach a file to include it."
      }
     },
     {
@@ -318,6 +345,39 @@
         "logout"
        ]
       }
+     }
+    },
+    {
+     "name": "Delete Account",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"password\": \"Password123\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/auth/account",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "auth",
+        "account"
+       ]
+      },
+      "description": "Permanently closes the signed-in account: confirm with the current password. Revokes every token, takes a technician offline, and soft-deletes the record (login is then blocked). Requires the bearer {{token}}."
      }
     },
     {
@@ -789,13 +849,59 @@
        }
       ],
       "body": {
-       "mode": "raw",
-       "options": {
-        "raw": {
-         "language": "json"
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "operation_id",
+         "value": "{{$guid}}",
+         "type": "text"
+        },
+        {
+         "key": "service_category_id",
+         "value": "1",
+         "type": "text"
+        },
+        {
+         "key": "address_id",
+         "value": "1",
+         "type": "text"
+        },
+        {
+         "key": "type",
+         "value": "urgent",
+         "type": "text"
+        },
+        {
+         "key": "description",
+         "value": "Leaking sink",
+         "type": "text"
+        },
+        {
+         "key": "scheduled_at",
+         "value": "",
+         "type": "text",
+         "disabled": true,
+         "description": "Required only when type=scheduled. A future ISO datetime, e.g. 2026-08-20T14:00:00Z."
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": [],
+         "description": "Optional flaw photos (max 3, images only). Enable the extra rows to attach several."
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": [],
+         "disabled": true
+        },
+        {
+         "key": "photos[]",
+         "type": "file",
+         "src": [],
+         "disabled": true
         }
-       },
-       "raw": "{\n  \"operation_id\": \"{{$guid}}\",\n  \"service_category_id\": 1,\n  \"address_id\": 1,\n  \"type\": \"urgent\",\n  \"description\": \"Leaking sink\"\n}"
+       ]
       },
       "url": {
        "raw": "{{base_url}}/api/orders",
@@ -807,7 +913,7 @@
         "orders"
        ]
       },
-      "description": "Creates an order and holds the inspection fee in escrow. Requires a funded wallet (top up first). Auto-saves the new id to {{order_id}}. For a scheduled order, use type=scheduled and add scheduled_at (a future ISO datetime).\n\noperation_id is an idempotency token: reuse the SAME value to retry safely (a repeat returns the same order, the fee is held once). {{$guid}} generates a fresh one on each send — pin it to a fixed value to test idempotency."
+      "description": "Multipart form-data. Creates an order and holds the inspection fee in escrow. Requires a funded wallet (top up first). Auto-saves the new id to {{order_id}}. For a scheduled order, set type=scheduled and enable scheduled_at (a future ISO datetime).\n\noperation_id is an idempotency token: reuse the SAME value to retry safely (a repeat returns the same order, the fee is held once). {{$guid}} generates a fresh one on each send — pin it to a fixed value to test idempotency.\n\nphotos[] are optional flaw photos (max 3, images only). Attach files to the photos[] rows; enable the extra rows to send more than one."
      }
     },
     {
@@ -932,6 +1038,12 @@
          "key": "selfie",
          "type": "file",
          "src": []
+        },
+        {
+         "key": "profile_photo",
+         "type": "file",
+         "src": [],
+         "description": "Optional profile photo (image only, max 4 MB)."
         }
        ]
       },
@@ -947,7 +1059,7 @@
         "technician"
        ]
       },
-      "description": "Multipart form-data. First run Auth > Register — Start (phone 0913333333) then Register — Verify OTP so {{register_ticket}} is set. Attach id_front, id_back, selfie image files. Redeems the ticket, creates a technician (status=pending) and logs you in (saves {{token}})."
+      "description": "Multipart form-data. First run Auth > Register — Start (phone 0913333333) then Register — Verify OTP so {{register_ticket}} is set. Attach id_front, id_back, selfie image files. Redeems the ticket, creates a technician (status=pending) and logs you in (saves {{token}}). profile_photo is optional (image only)."
      }
     },
     {
@@ -1793,7 +1905,7 @@
          "language": "json"
         }
        },
-       "raw": "{\n  \"scheduled_at\": \"2026-08-20 14:00:00\",\n  \"description\": \"The same fault came back.\"\n}"
+       "raw": "{\n  \"description\": \"The same fault came back.\"\n}"
       },
       "url": {
        "raw": "{{base_url}}/api/orders/{{order_id}}/warranty-claim",
@@ -1807,7 +1919,7 @@
         "warranty-claim"
        ]
       },
-      "description": "Client claims the warranty within warranty_until and PICKS a revisit time (scheduled_at, future, within scheduled_max_days). Spawns a zero-cost warranty order (kind=warranty, parent_order_id set) and books the ORIGINAL technician into that slot as a scheduled visit (status scheduled). 409 if the warranty expired, the order isn't completed, a warranty visit already exists, or the original tech is already booked at that time. Saves the new order id to {{warranty_order_id}}. (Reassignment to a paid substitute when the original tech can't take it is a later slice.)"
+      "description": "Client claims the warranty within warranty_until. Spawns a same-technician, zero-labor warranty order (kind=warranty, parent_order_id set, status in_progress). 409 if the warranty expired, order isn't completed, or a warranty visit already exists. Saves the new order id to {{warranty_order_id}}."
      }
     }
    ]
