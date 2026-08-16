@@ -56,13 +56,46 @@ def walk_requests(items):
             yield it
 
 
+def sanitize_headers(headers):
+    """Postman's GET returns header values loosely typed; its PUT schema demands
+    string key/value. Coerce each entry so the merged collection validates."""
+    if not isinstance(headers, list):
+        return headers
+    clean = []
+    for h in headers:
+        if isinstance(h, dict):
+            entry = dict(h)
+            entry["key"] = str(entry.get("key", ""))
+            entry["value"] = "" if entry.get("value") is None else str(entry["value"])
+            clean.append(entry)
+        elif isinstance(h, str):
+            clean.append(h)
+    return clean
+
+
+def sanitize_response(resp):
+    """Make a single saved response schema-valid for the PUT (fix header typing on
+    both the response and its embedded originalRequest)."""
+    if not isinstance(resp, dict):
+        return resp
+    out = dict(resp)
+    if "header" in out:
+        out["header"] = sanitize_headers(out["header"])
+    orig = out.get("originalRequest")
+    if isinstance(orig, dict) and isinstance(orig.get("header"), list):
+        orig = dict(orig)
+        orig["header"] = sanitize_headers(orig["header"])
+        out["originalRequest"] = orig
+    return out
+
+
 def collect_saved_responses(cloud_items) -> dict:
-    """Map endpoint key -> saved `response` array (only non-empty ones)."""
+    """Map endpoint key -> saved (sanitized) `response` array (only non-empty ones)."""
     saved = {}
     for it in walk_requests(cloud_items):
         responses = it.get("response") or []
         if responses:
-            saved.setdefault(request_key(it), responses)
+            saved.setdefault(request_key(it), [sanitize_response(r) for r in responses])
     return saved
 
 
