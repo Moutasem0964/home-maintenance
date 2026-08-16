@@ -74,6 +74,14 @@
    "key": "flag_id",
    "value": "",
    "type": "string"
+  },
+  {
+   "key": "topup_id",
+   "value": "1"
+  },
+  {
+   "key": "withdrawal_id",
+   "value": "1"
   }
  ],
  "item": [
@@ -641,6 +649,197 @@
        ]
       },
       "description": "Admin-only. Credits the platform guarantee fund (the wallet that pays substitute technicians for warranty visits). Immediately retries any warranty payouts that were waiting on funds. Requires an admin bearer {{token}}."
+     }
+    },
+    {
+     "name": "Request Deposit (client)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/wallet/deposits",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "wallet",
+        "deposits"
+       ]
+      },
+      "description": "Manual top-up: transfer to the account from /app-settings, then upload the receipt. Creates a PENDING top-up (no credit until an admin approves).",
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "amount",
+         "value": "100.00",
+         "type": "text"
+        },
+        {
+         "key": "reference",
+         "value": "TX-{{$timestamp}}",
+         "type": "text",
+         "description": "The transfer's reference number (unique)."
+        },
+        {
+         "key": "receipt",
+         "type": "file",
+         "src": [],
+         "description": "Photo of the transfer receipt."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "My Deposits (client)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/wallet/deposits",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "wallet",
+        "deposits"
+       ]
+      },
+      "description": "The caller's own top-up requests (manual + instant)."
+     }
+    },
+    {
+     "name": "List Deposits (admin)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/deposits?status=pending",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "deposits"
+       ],
+       "query": [
+        {
+         "key": "status",
+         "value": "pending"
+        }
+       ]
+      },
+      "description": "Manual top-ups awaiting review."
+     }
+    },
+    {
+     "name": "Approve Deposit (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/deposits/{{topup_id}}/approve",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "deposits",
+        "{{topup_id}}",
+        "approve"
+       ]
+      },
+      "description": "Approve + credit the wallet. Optional amount corrects to what the receipt shows.",
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"amount\": \"100.00\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Reject Deposit (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/deposits/{{topup_id}}/reject",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "deposits",
+        "{{topup_id}}",
+        "reject"
+       ]
+      },
+      "description": "Decline a manual top-up; nothing is credited."
+     }
+    },
+    {
+     "name": "Deposit Receipt (admin)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/deposits/{{topup_id}}/receipt",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "deposits",
+        "{{topup_id}}",
+        "receipt"
+       ]
+      },
+      "description": "Stream the uploaded transfer receipt."
      }
     }
    ]
@@ -2264,6 +2463,217 @@
        ]
       },
       "description": "Admin resolves a reported no-show (technician OR client), routing by the open claim on the order. outcome=dismissed → nothing moves, the order carries on. outcome=confirmed → a technician no-show refunds the client in full; a client no-show releases the full inspection fee to the technician. Either way the order closes as no_show and the flag is upheld."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Withdrawals",
+   "item": [
+    {
+     "name": "Request Withdrawal (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/withdrawals",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "withdrawals"
+       ]
+      },
+      "description": "Technician cash-out. Reserves the amount from available balance (available -> held). Guards: >= min_withdrawal_amount, <= available, one at a time, blocked during an open dispute.",
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"amount\": \"100.00\",\n  \"method\": \"bank_account\",\n  \"destination_details\": \"IBAN SY.. / account no.\"\n}"
+      }
+     }
+    },
+    {
+     "name": "My Withdrawals (technician)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/withdrawals",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "withdrawals"
+       ]
+      },
+      "description": "The technician's own withdrawal requests."
+     }
+    },
+    {
+     "name": "My Withdrawal Receipt (technician)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/withdrawals/{{withdrawal_id}}/receipt",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "withdrawals",
+        "{{withdrawal_id}}",
+        "receipt"
+       ]
+      },
+      "description": "Stream the payout receipt the admin uploaded."
+     }
+    },
+    {
+     "name": "List Withdrawals (admin)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/withdrawals?status=processing",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "withdrawals"
+       ],
+       "query": [
+        {
+         "key": "status",
+         "value": "processing"
+        }
+       ]
+      },
+      "description": "Withdrawals awaiting payout."
+     }
+    },
+    {
+     "name": "Complete Withdrawal (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/withdrawals/{{withdrawal_id}}/complete",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "withdrawals",
+        "{{withdrawal_id}}",
+        "complete"
+       ]
+      },
+      "description": "Mark paid + upload the payout receipt. Reserved funds leave the ledger.",
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "receipt",
+         "type": "file",
+         "src": [],
+         "description": "Proof the money was sent."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "Reject Withdrawal (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/withdrawals/{{withdrawal_id}}/reject",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "withdrawals",
+        "{{withdrawal_id}}",
+        "reject"
+       ]
+      },
+      "description": "Decline the payout; the reserved funds return to available."
+     }
+    },
+    {
+     "name": "Withdrawal Receipt (admin)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/withdrawals/{{withdrawal_id}}/receipt",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "withdrawals",
+        "{{withdrawal_id}}",
+        "receipt"
+       ]
+      },
+      "description": "Stream the payout receipt for the record."
      }
     }
    ]

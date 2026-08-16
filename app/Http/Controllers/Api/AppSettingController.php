@@ -29,6 +29,9 @@ class AppSettingController extends Controller
         'scheduled_max_days',
         'arrival_radius_meters',
         'parts_wait_max_hours',
+        'manual_topup_account_name',
+        'manual_topup_account_number',
+        'manual_topup_instructions',
     ];
 
     public function index(): JsonResponse
