@@ -75,6 +75,7 @@ class AuthController extends Controller
         }
 
         $user = $this->authService->registerClient($data['phone'], $data['name'], $data['password']);
+        $this->storeProfilePhoto($request, $user);
 
         return response()->json([
             'token' => $this->authService->issueToken($user),
@@ -99,11 +100,44 @@ class AuthController extends Controller
         ];
 
         $user = $this->authService->registerTechnician($data['phone'], $data['name'], $data['password'], $documents);
+        $this->storeProfilePhoto($request, $user);
 
         return response()->json([
             'token' => $this->authService->issueToken($user),
             'user' => new UserResource($user),
         ], 201);
+    }
+
+    /** Store an optional profile photo on the private disk and record its path. */
+    private function storeProfilePhoto(Request $request, User $user): void
+    {
+        if ($request->hasFile('profile_photo')) {
+            $user->update(['profile_image_url' => $request->file('profile_photo')->store('profiles', 'local')]);
+        }
+    }
+
+    /**
+     * Delete the authenticated user's own account: password-confirmed, revokes every token,
+     * takes a technician offline, and soft-deletes the record (login is blocked; data is
+     * retained for financial/audit integrity rather than hard-deleted).
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $request->validate(['password' => ['required', 'string']]);
+        if (! Hash::check((string) $request->input('password'), $user->password)) {
+            throw ValidationException::withMessages(['password' => 'The password is incorrect.']);
+        }
+
+        // Stop the dispatch pool from ever considering a departing technician.
+        $user->technician()->update(['is_available' => false]);
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->json(['message' => 'Account deleted.']);
     }
 
     public function login(LoginRequest $request): JsonResponse

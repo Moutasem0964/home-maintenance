@@ -26,6 +26,8 @@ class RegisterClientRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'ticket' => ['required', 'string'],
+            // Optional profile photo (private disk). Images only, capped to protect the VM disk.
+            'profile_photo' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }
