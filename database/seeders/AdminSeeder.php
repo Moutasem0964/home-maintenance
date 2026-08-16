@@ -14,7 +14,7 @@ class AdminSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['phone' => '0900000000'],
             [
-                'name' => 'System Admin',
+                'name' => 'مدير النظام',
                 'password' => 'ChangeMe!123', // hashed by cast — change immediately
                 'role' => UserRole::Admin,
             ],
