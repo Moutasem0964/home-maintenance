@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentType;
@@ -19,6 +20,7 @@ class QuoteService
 {
     public function __construct(
         private readonly EscrowService $escrowService,
+        private readonly NotificationService $notificationService,
     ) {}
 
     /**
@@ -149,6 +151,25 @@ class QuoteService
 
             if ($done) {
                 $expired++;
+
+                /** @var Order $order */
+                $order = $quote->order()->firstOrFail();
+                $this->notificationService->notify(
+                    $order->client,
+                    NotificationCategory::Orders,
+                    'انتهت صلاحية العرض',
+                    'انتهت مهلة عرض السعر — أصبح الطلب كشفاً فقط.',
+                    $order,
+                );
+                if ($order->technician_id !== null) {
+                    $this->notificationService->notify(
+                        $order->technician->user,
+                        NotificationCategory::Orders,
+                        'انتهت صلاحية عرضك',
+                        'لم يوافق العميل على عرض السعر ضمن المهلة.',
+                        $order,
+                    );
+                }
             }
         }
 

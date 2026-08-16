@@ -428,6 +428,14 @@ class AssignmentService
 
                 OrderEvent::create(['order_id' => $locked->id, 'event_type' => OrderEventType::Expired]);
 
+                $this->notificationService->notify(
+                    $locked->client,
+                    NotificationCategory::Orders,
+                    'انتهت صلاحية طلبك',
+                    'تعذّر إيجاد فني متاح، وتم إلغاء الطلب وإعادة رسم الكشف إلى محفظتك.',
+                    $locked,
+                );
+
                 return true;
             });
 

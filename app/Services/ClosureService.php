@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
 use App\Enums\QuoteStatus;
@@ -16,7 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class ClosureService
 {
-    public function __construct(private readonly ProbationService $probationService) {}
+    public function __construct(
+        private readonly ProbationService $probationService,
+        private readonly NotificationService $notificationService,
+    ) {}
 
     /**
      * The assigned technician requests closure when the work is done. The server
@@ -166,6 +170,23 @@ class ClosureService
                 $completed++;
                 if ($order->technician_id !== null) {
                     $this->probationService->evaluate(Technician::findOrFail($order->technician_id));
+                }
+
+                $this->notificationService->notify(
+                    $order->client,
+                    NotificationCategory::Orders,
+                    'اكتمل طلبك',
+                    'تم إغلاق الطلب تلقائياً بعد انتهاء مهلة التأكيد.',
+                    $order,
+                );
+                if ($order->technician_id !== null) {
+                    $this->notificationService->notify(
+                        $order->technician->user,
+                        NotificationCategory::Orders,
+                        'اكتمل الطلب',
+                        'تم إغلاق الطلب — ستُحرّر مستحقاتك بعد انتهاء فترة الاعتراض.',
+                        $order,
+                    );
                 }
             }
         }
