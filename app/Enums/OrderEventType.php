@@ -36,4 +36,7 @@ enum OrderEventType: string
     case NoShow = 'no_show';
     case TechnicianWithdrew = 'technician_withdrew'; // decline-after-accept → re-dispatch
     case WarrantyClaimed = 'warranty_claimed';       // client files a warranty visit → child order
+    case WarrantyReassigned = 'warranty_reassigned'; // warranty visit sent to the pool for a paid substitute
+    case SubstitutePaid = 'substitute_paid';         // platform paid the substitute the original labor cost
+    case SubstitutePayoutPending = 'substitute_payout_pending'; // platform wallet short — payout awaits top-up
 }

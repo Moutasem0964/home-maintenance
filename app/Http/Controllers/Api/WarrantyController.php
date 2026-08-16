@@ -8,6 +8,7 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\WarrantyService;
+use Illuminate\Support\Carbon;
 
 class WarrantyController extends Controller
 {
@@ -26,6 +27,7 @@ class WarrantyController extends Controller
             $warranty = $warrantyService->claim(
                 $orderModel,
                 $user,
+                Carbon::parse((string) $request->validated('scheduled_at')),
                 $description !== null ? (string) $description : null,
             );
         } catch (\DomainException $e) {

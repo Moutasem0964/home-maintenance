@@ -2,16 +2,21 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AppointmentStatus;
+use App\Enums\AppointmentType;
 use App\Enums\OrderStatus;
 use App\Enums\QuoteStatus;
 use App\Enums\QuoteType;
+use App\Models\Appointment;
 use App\Models\Order;
 use App\Models\Quote;
 use App\Models\Technician;
 use App\Models\User;
 use App\Services\ClosureService;
+use App\Services\SchedulingService;
 use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class WarrantyTest extends TestCase
@@ -91,6 +96,12 @@ class WarrantyTest extends TestCase
 
     // ---------- warranty claim ----------
 
+    /** A valid future revisit time within the scheduling window. */
+    private function when(): Carbon
+    {
+        return now()->addDay()->startOfHour();
+    }
+
     public function test_claim_requires_authentication(): void
     {
         [$order] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
@@ -103,26 +114,90 @@ class WarrantyTest extends TestCase
         [$order, , $tech] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
 
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')
-            ->postJson("/api/orders/{$order->id}/warranty-claim")->assertForbidden();
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $this->when()->toDateTimeString()])
+            ->assertForbidden();
     }
 
-    public function test_client_claim_spawns_a_same_tech_zero_labor_warranty_order(): void
+    public function test_claim_requires_a_revisit_time(): void
     {
-        [$order, $client, $tech] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
+        [$order, $client] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
 
         $this->actingAs($client, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/warranty-claim", ['description' => 'The leak came back.'])
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['description' => 'no time given'])
+            ->assertStatus(422);
+    }
+
+    public function test_client_claim_books_a_scheduled_same_tech_warranty_visit(): void
+    {
+        [$order, $client, $tech] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
+        $when = $this->when();
+
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/orders/{$order->id}/warranty-claim", [
+                'scheduled_at' => $when->toDateTimeString(),
+                'description' => 'The leak came back.',
+            ])
             ->assertCreated()
             ->assertJsonPath('data.kind', 'warranty');
 
+        $warranty = Order::where('parent_order_id', $order->id)->firstOrFail();
         $this->assertDatabaseHas('orders', [
-            'parent_order_id' => $order->id,
+            'id' => $warranty->id,
             'kind' => 'warranty',
             'technician_id' => $tech->id,
-            'client_id' => $client->id,
-            'status' => 'in_progress',
+            'status' => 'scheduled',
             'inspection_fee' => '0.00',
         ]);
+        // The original tech is booked into the client's chosen slot.
+        $this->assertDatabaseHas('appointments', [
+            'order_id' => $warranty->id, 'technician_id' => $tech->id, 'status' => 'confirmed',
+        ]);
+    }
+
+    public function test_claim_falls_back_to_the_pool_when_the_original_tech_is_busy(): void
+    {
+        [$order, $client, $tech] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
+        $when = $this->when();
+
+        // Pre-book the tech into the exact slot.
+        Appointment::create([
+            'order_id' => Order::factory()->create(['technician_id' => $tech->id])->id,
+            'technician_id' => $tech->id,
+            'type' => AppointmentType::Inspection,
+            'starts_at' => $when,
+            'ends_at' => $when->copy()->addHours(2),
+            'status' => AppointmentStatus::Confirmed,
+        ]);
+
+        // The claim no longer fails: the visit is created and sent to the pool for a substitute.
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $when->toDateTimeString()])
+            ->assertCreated()
+            ->assertJsonPath('data.kind', 'warranty');
+
+        $warranty = Order::where('parent_order_id', $order->id)->firstOrFail();
+        $this->assertSame(OrderStatus::Pending, $warranty->status);
+        $this->assertNull($warranty->technician_id);
+        // The original tech was NOT booked (they were busy).
+        $this->assertDatabaseMissing('appointments', ['order_id' => $warranty->id]);
+        $this->assertDatabaseHas('order_events', [
+            'order_id' => $warranty->id, 'event_type' => 'warranty_reassigned',
+        ]);
+    }
+
+    public function test_activating_a_warranty_appointment_puts_the_order_in_progress(): void
+    {
+        [$order, $client] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
+        $when = $this->when();
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $when->toDateTimeString()])->assertCreated();
+
+        $warranty = Order::where('parent_order_id', $order->id)->firstOrFail();
+
+        $this->travelTo($when->copy()->addMinute());
+        app(SchedulingService::class)->activateDue();
+
+        $this->assertSame(OrderStatus::InProgress, $warranty->refresh()->status);
     }
 
     public function test_cannot_claim_after_the_warranty_expires(): void
@@ -130,7 +205,8 @@ class WarrantyTest extends TestCase
         [$order, $client] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->subDay()]);
 
         $this->actingAs($client, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/warranty-claim")->assertStatus(409);
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $this->when()->toDateTimeString()])
+            ->assertStatus(409);
     }
 
     public function test_cannot_claim_without_a_warranty(): void
@@ -138,7 +214,8 @@ class WarrantyTest extends TestCase
         [$order, $client] = $this->order(OrderStatus::Completed, ['warranty_until' => null]);
 
         $this->actingAs($client, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/warranty-claim")->assertStatus(409);
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $this->when()->toDateTimeString()])
+            ->assertStatus(409);
     }
 
     public function test_cannot_claim_twice(): void
@@ -146,9 +223,11 @@ class WarrantyTest extends TestCase
         [$order, $client] = $this->order(OrderStatus::Completed, ['warranty_until' => now()->addDays(10)]);
 
         $this->actingAs($client, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/warranty-claim")->assertCreated();
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $this->when()->toDateTimeString()])
+            ->assertCreated();
 
         $this->actingAs($client, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/warranty-claim")->assertStatus(409);
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => $this->when()->addHour()->toDateTimeString()])
+            ->assertStatus(409);
     }
 }

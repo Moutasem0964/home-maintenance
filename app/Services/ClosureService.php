@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
+use App\Enums\OrderKind;
 use App\Enums\OrderStatus;
 use App\Enums\QuoteStatus;
 use App\Exceptions\ClosureCodeException;
@@ -20,6 +21,7 @@ class ClosureService
     public function __construct(
         private readonly ProbationService $probationService,
         private readonly NotificationService $notificationService,
+        private readonly WarrantyPayoutService $warrantyPayoutService,
     ) {}
 
     /**
@@ -112,6 +114,11 @@ class ClosureService
                 $this->probationService->evaluate(Technician::findOrFail($outcome->technician_id));
             }
 
+            // A warranty visit done by a substitute → pay them from the platform guarantee fund.
+            if ($outcome->kind === OrderKind::Warranty) {
+                $this->warrantyPayoutService->settle($outcome);
+            }
+
             return $outcome;
         }
 
@@ -170,6 +177,11 @@ class ClosureService
                 $completed++;
                 if ($order->technician_id !== null) {
                     $this->probationService->evaluate(Technician::findOrFail($order->technician_id));
+                }
+
+                // A warranty visit done by a substitute → pay them from the platform guarantee fund.
+                if ($order->kind === OrderKind::Warranty) {
+                    $this->warrantyPayoutService->settle($order->refresh());
                 }
 
                 $this->notificationService->notify(

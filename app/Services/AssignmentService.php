@@ -6,6 +6,7 @@ use App\Enums\AppointmentStatus;
 use App\Enums\DispatchOfferStatus;
 use App\Enums\NotificationCategory;
 use App\Enums\OrderEventType;
+use App\Enums\OrderKind;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\TechnicianStatus;
@@ -394,6 +395,9 @@ class AssignmentService
 
         $stale = Order::query()
             ->where('status', OrderStatus::Pending)
+            // Warranty visits are the platform's obligation — they wait for a substitute
+            // indefinitely and must never be refund-and-killed by this sweep.
+            ->where('kind', '!=', OrderKind::Warranty)
             ->where(function (Builder $query) use ($cutoff) {
                 $query->where(function (Builder $urgent) use ($cutoff) {
                     $urgent->where('type', OrderType::Urgent)

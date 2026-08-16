@@ -572,6 +572,40 @@
        ]
       }
      }
+    },
+    {
+     "name": "Platform Wallet Top Up (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"amount\": \"100.00\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/admin/platform-wallet/top-up",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "platform-wallet",
+        "top-up"
+       ]
+      },
+      "description": "Admin-only. Credits the platform guarantee fund (the wallet that pays substitute technicians for warranty visits). Immediately retries any warranty payouts that were waiting on funds. Requires an admin bearer {{token}}."
+     }
     }
    ]
   },

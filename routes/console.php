@@ -38,4 +38,8 @@ Schedule::command('appointments:remind')->everyFiveMinutes();
 // Flag orders stuck waiting for parts past the max window for admin review.
 Schedule::command('parts:flag-overdue')->hourly();
 
+// Retry warranty substitute payouts that were short on platform funds (safety net;
+// an admin top-up also retries immediately).
+Schedule::command('warranty:retry-payouts')->everyFiveMinutes();
+
 Schedule::command('telescope:prune --hours=24')->daily();
