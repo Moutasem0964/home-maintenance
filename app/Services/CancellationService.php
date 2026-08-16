@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\LocationTracker;
 use App\Enums\OrderEventType;
 use App\Enums\OrderKind;
 use App\Enums\OrderStatus;
@@ -23,6 +24,7 @@ class CancellationService
         private readonly AssignmentService $assignmentService,
         private readonly TechnicianFlagService $flagService,
         private readonly WarrantyService $warrantyService,
+        private readonly LocationTracker $locationTracker,
     ) {}
 
     /**
@@ -36,7 +38,10 @@ class CancellationService
      */
     public function cancelByClient(Order $order): Order
     {
-        return DB::transaction(function () use ($order): Order {
+        // Cancelling from a committed state ends any live-location tracking that was open.
+        $wasTracked = in_array($order->status, [OrderStatus::Accepted, OrderStatus::Scheduled], true);
+
+        $result = DB::transaction(function () use ($order): Order {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -65,6 +70,12 @@ class CancellationService
 
             return $locked;
         });
+
+        if ($wasTracked) {
+            $this->locationTracker->close($result);
+        }
+
+        return $result;
     }
 
     /** Refund the client all but the technician's cancel-fee share of the inspection fee. */
@@ -86,7 +97,7 @@ class CancellationService
      */
     public function technicianWithdraw(Order $order): Order
     {
-        return DB::transaction(function () use ($order): Order {
+        $result = DB::transaction(function () use ($order): Order {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -109,6 +120,11 @@ class CancellationService
 
             return $locked;
         });
+
+        // The withdrawing tech is gone — close their live-location gate (a new tech reopens it on accept).
+        $this->locationTracker->close($result);
+
+        return $result;
     }
 
     /**

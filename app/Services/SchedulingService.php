@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\LocationTracker;
 use App\Enums\AppointmentStatus;
 use App\Enums\AppointmentType;
 use App\Enums\NotificationCategory;
@@ -19,7 +20,10 @@ use Illuminate\Support\Facades\DB;
 
 class SchedulingService
 {
-    public function __construct(private readonly NotificationService $notificationService) {}
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly LocationTracker $locationTracker,
+    ) {}
 
     /**
      * Book the technician's visit for a scheduled order at its requested time. Called
@@ -124,6 +128,13 @@ class SchedulingService
 
                 /** @var Order $order */
                 $order = $appointment->order()->firstOrFail();
+
+                // A normal scheduled order is now on-site-bound (Accepted) → open live location.
+                // A warranty visit activates straight to InProgress and isn't tracked.
+                if ($order->status === OrderStatus::Accepted) {
+                    $this->locationTracker->open($order);
+                }
+
                 $this->notificationService->notify(
                     $order->client,
                     NotificationCategory::Orders,

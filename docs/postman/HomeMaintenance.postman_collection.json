@@ -675,6 +675,30 @@
       },
       "description": "Remove a device token (call on logout). Only deletes a token owned by the current user."
      }
+    },
+    {
+     "name": "Firebase Custom Token",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/firebase/token",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "firebase",
+        "token"
+       ]
+      },
+      "description": "Mints a Firebase custom token for the signed-in user (uid = app user id). The app exchanges it via signInWithCustomToken() to read/write the Realtime Database live-location node. Requires the bearer {{token}}."
+     }
     }
    ]
   },
