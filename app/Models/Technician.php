@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $daily_order_limit
  * @property numeric-string|null $rating_avg
  * @property Carbon|null $location_updated_at
+ * @property string|null $sham_cash_number
+ * @property string|null $sham_cash_name
  */
 class Technician extends Model
 {
@@ -24,7 +26,7 @@ class Technician extends Model
     protected $fillable = [
         'user_id', 'status', 'is_available', 'current_lat', 'current_lng', 'location_updated_at',
         'id_front_url', 'id_back_url', 'selfie_url', 'criminal_record_url', 'proof_url',
-        'charter_accepted_at', 'daily_order_limit',
+        'charter_accepted_at', 'daily_order_limit', 'sham_cash_number', 'sham_cash_name',
     ];
 
     protected function casts(): array
@@ -44,6 +46,8 @@ class Technician extends Model
             'criminal_record_url' => 'encrypted',
             'proof_url' => 'encrypted',
             'charter_accepted_at' => 'datetime',
+            // Sham Cash payout number — financial PII, encrypted at rest.
+            'sham_cash_number' => 'encrypted',
         ];
     }
 
@@ -86,6 +90,12 @@ class Technician extends Model
     public function flags(): HasMany
     {
         return $this->hasMany(TechnicianFlag::class);
+    }
+
+    /** A payout can only be requested once the technician has saved where to send it. */
+    public function hasShamCashAccount(): bool
+    {
+        return filled($this->sham_cash_number);
     }
 
     public function canAcceptMore(): bool

@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Technician;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Models\Withdrawal;
 use App\Services\WalletService;
 use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,10 +28,13 @@ class WithdrawalTest extends TestCase
         Storage::fake('local');
     }
 
-    /** @return array{0: Technician, 1: User} a technician whose wallet holds $balance available. */
+    /** @return array{0: Technician, 1: User} a technician with a Sham Cash account and $balance available. */
     private function fundedTech(string $balance = '500.00'): array
     {
-        $tech = Technician::factory()->active()->create();
+        $tech = Technician::factory()->active()->create([
+            'sham_cash_number' => '1234567890123456',
+            'sham_cash_name' => 'محمد المهندس',
+        ]);
         /** @var User $user */
         $user = $tech->user;
         Wallet::create(['user_id' => $user->id]);
@@ -48,8 +52,6 @@ class WithdrawalTest extends TestCase
     {
         return $this->actingAs($user, 'sanctum')->postJson('/api/technician/withdrawals', [
             'amount' => $amount,
-            'method' => 'bank_account',
-            'destination_details' => 'IBAN SY00 0000',
         ]);
     }
 
@@ -65,6 +67,29 @@ class WithdrawalTest extends TestCase
         $this->assertDatabaseHas('withdrawals', [
             'technician_id' => $tech->id, 'status' => 'processing', 'amount' => '100.00',
         ]);
+    }
+
+    public function test_the_withdrawal_snapshots_the_sham_cash_destination(): void
+    {
+        [$tech, $user] = $this->fundedTech();
+
+        $id = $this->request($user, '100.00')->assertCreated()->json('data.id');
+
+        $withdrawal = Withdrawal::findOrFail($id);
+        $this->assertSame('1234567890123456', $withdrawal->destination_details); // decrypted by the cast
+        $this->assertSame('محمد المهندس', $withdrawal->destination_name);
+    }
+
+    public function test_cannot_request_without_a_sham_cash_account(): void
+    {
+        $tech = Technician::factory()->active()->create(); // no Sham Cash account saved
+        /** @var User $user */
+        $user = $tech->user;
+        Wallet::create(['user_id' => $user->id]);
+        app(WalletService::class)->topUp($user, '500.00', 'seed-'.uniqid());
+
+        $this->request($user, '100.00')->assertStatus(409);
+        $this->assertDatabaseCount('withdrawals', 0);
     }
 
     public function test_below_the_minimum_is_rejected(): void

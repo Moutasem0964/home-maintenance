@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests\Wallet;
 
-use App\Enums\WithdrawalMethod;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreWithdrawalRequest extends FormRequest
 {
@@ -16,11 +14,10 @@ class StoreWithdrawalRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        // Just the amount: the payout destination is the technician's saved Sham Cash account,
+        // snapshotted onto the withdrawal in WithdrawalService::request().
         return [
             'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
-            'method' => ['required', Rule::enum(WithdrawalMethod::class)],
-            // Where to send the money (account number / wallet id). Stored encrypted.
-            'destination_details' => ['required', 'string', 'max:500'],
         ];
     }
 }

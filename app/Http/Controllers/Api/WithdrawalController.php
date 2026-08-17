@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\WithdrawalMethod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Wallet\StoreWithdrawalRequest;
 use App\Http\Resources\WithdrawalResource;
@@ -28,8 +27,6 @@ class WithdrawalController extends Controller
             $withdrawal = $withdrawalService->request(
                 $user,
                 (string) $request->validated('amount'),
-                WithdrawalMethod::from((string) $request->validated('method')),
-                (string) $request->validated('destination_details'),
             );
         } catch (\DomainException $e) {
             abort(409, $e->getMessage());

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Technician\SetAvailabilityRequest;
 use App\Http\Requests\Technician\SetServicesRequest;
 use App\Http\Requests\Technician\UpdateLocationRequest;
+use App\Http\Requests\Technician\UpdateShamCashAccountRequest;
 use App\Http\Resources\TechnicianResource;
 use App\Services\ProbationService;
 use Illuminate\Http\JsonResponse;
@@ -49,6 +50,22 @@ class TechnicianController extends Controller
             'current_lat' => $data['current_lat'] ?? $technician->current_lat,
             'current_lng' => $data['current_lng'] ?? $technician->current_lng,
             'location_updated_at' => $hasFix ? now() : $technician->location_updated_at,
+        ]);
+
+        return new TechnicianResource($technician->load('services'));
+    }
+
+    /**
+     * Save (or replace) the technician's Sham Cash payout account. Withdrawals are sent here,
+     * so the number is required before a payout can be requested; it's encrypted at rest.
+     */
+    public function setShamCashAccount(UpdateShamCashAccountRequest $request): TechnicianResource
+    {
+        $technician = $this->technicianFor($request);
+
+        $technician->update([
+            'sham_cash_number' => $request->validated('account_number'),
+            'sham_cash_name' => $request->validated('account_holder_name'),
         ]);
 
         return new TechnicianResource($technician->load('services'));

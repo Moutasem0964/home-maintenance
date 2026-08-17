@@ -6,7 +6,6 @@ use App\Enums\BalanceType;
 use App\Enums\NotificationCategory;
 use App\Enums\OrderStatus;
 use App\Enums\TxnType;
-use App\Enums\WithdrawalMethod;
 use App\Enums\WithdrawalStatus;
 use App\Models\AppSetting;
 use App\Models\Order;
@@ -28,13 +27,17 @@ class WithdrawalService
 {
     public function __construct(private readonly NotificationService $notificationService) {}
 
-    public function request(User $user, string $amount, WithdrawalMethod $method, string $destination): Withdrawal
+    public function request(User $user, string $amount): Withdrawal
     {
         /** @var Technician $technician */
         $technician = $user->technician()->firstOrFail();
 
-        return DB::transaction(function () use ($user, $technician, $amount, $method, $destination): Withdrawal {
+        return DB::transaction(function () use ($user, $technician, $amount): Withdrawal {
             $wallet = $user->wallet()->lockForUpdate()->firstOrFail();
+
+            if (! $technician->hasShamCashAccount()) {
+                throw new \DomainException('Add your Sham Cash account before requesting a withdrawal.');
+            }
 
             $min = number_format((float) AppSetting::get('min_withdrawal_amount', 100), 2, '.', '');
             if (bccomp($amount, $min, 2) < 0) {
@@ -57,8 +60,10 @@ class WithdrawalService
             $withdrawal = Withdrawal::create([
                 'technician_id' => $technician->id,
                 'amount' => $amount,
-                'method' => $method,
-                'destination_details' => $destination,
+                // Snapshot the destination at request time so a later profile change never
+                // rewrites where an already-requested payout was sent.
+                'destination_details' => $technician->sham_cash_number,
+                'destination_name' => $technician->sham_cash_name,
                 'status' => WithdrawalStatus::Processing,
             ]);
 
