@@ -8,7 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** One conversation per order; becomes read_only at closure, kept as dispute evidence. */
+/**
+ * One conversation per order; becomes read_only at closure, kept as dispute evidence.
+ *
+ * @property ConversationStatus $status
+ */
 class Conversation extends Model
 {
     use HasFactory;
@@ -20,11 +24,13 @@ class Conversation extends Model
         return ['status' => ConversationStatus::class];
     }
 
+    /** @return BelongsTo<Order, $this> */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
+    /** @return HasMany<Message, $this> */
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);

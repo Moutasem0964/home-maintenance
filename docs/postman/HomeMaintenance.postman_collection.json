@@ -86,6 +86,10 @@
   {
    "key": "notification_id",
    "value": "1"
+  },
+  {
+   "key": "message_id",
+   "value": "1"
   }
  ],
  "item": [
@@ -2845,6 +2849,129 @@
        ]
       },
       "description": "Mark every unread notification read."
+     }
+    }
+   ]
+  },
+  {
+   "name": "Chat",
+   "item": [
+    {
+     "name": "List Messages",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/messages",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "messages"
+       ]
+      },
+      "description": "The order's chat thread (newest first, paginated). Client, assigned tech, or admin."
+     }
+    },
+    {
+     "name": "Send Message",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/messages",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "messages"
+       ]
+      },
+      "description": "Send text and/or an image to the other party. Allowed only while the order is active (locks read-only once finished).",
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "message_text",
+         "value": "مرحبا",
+         "type": "text"
+        },
+        {
+         "key": "image",
+         "type": "file",
+         "src": [],
+         "disabled": true,
+         "description": "Optional image (either text or image required)."
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "Mark Read",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/messages/read",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "messages",
+        "read"
+       ]
+      },
+      "description": "Mark the other party's messages as read."
+     }
+    },
+    {
+     "name": "Message Image",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/messages/{{message_id}}/image",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "messages",
+        "{{message_id}}",
+        "image"
+       ]
+      },
+      "description": "Stream a chat image (participant or admin)."
      }
     }
    ]
