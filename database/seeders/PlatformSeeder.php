@@ -15,12 +15,15 @@ class PlatformSeeder extends Seeder
      */
     public function run(): void
     {
+        // Keyed on the role (there is exactly one platform account, resolved via sole()), so an
+        // existing account is matched regardless of its stored phone — no risk of a duplicate.
+        // The phone is stored E.164, consistent with how real users are saved.
         $platformUser = User::firstOrCreate(
-            ['phone' => '0999999999'],
+            ['role' => UserRole::Platform],
             [
+                'phone' => '+963999999999',
                 'name' => 'حساب المنصة',
                 'password' => Random::generate(40), // hashed by cast
-                'role' => UserRole::Platform,
             ],
         );
         Wallet::firstOrCreate(['user_id' => $platformUser->id]);
