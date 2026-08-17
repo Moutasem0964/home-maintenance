@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\FirebaseTokenController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OfficeController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\OrderMessageController;
 use App\Http\Controllers\Api\OrderPhotoController;
 use App\Http\Controllers\Api\PartsWaitController;
 use App\Http\Controllers\Api\ProfileController;
@@ -107,6 +108,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('disputes', [DisputeController::class, 'index']);
     Route::post('orders/{order}/dispute', [DisputeController::class, 'store']);
     Route::post('disputes/{dispute}/resolve', [DisputeController::class, 'resolve']);
+
+    Route::get('orders/{order}/messages', [OrderMessageController::class, 'index']);
+    Route::post('orders/{order}/messages', [OrderMessageController::class, 'store']);
+    Route::post('orders/{order}/messages/read', [OrderMessageController::class, 'markRead']);
+    Route::get('messages/{message}/image', [OrderMessageController::class, 'image']);
 
     Route::post('orders/{order}/review', [ReviewController::class, 'store']);
     Route::post('orders/{order}/warranty-claim', [WarrantyController::class, 'claim']);
