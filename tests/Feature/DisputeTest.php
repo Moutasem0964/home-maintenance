@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Services\EscrowService;
 use App\Services\WalletService;
+use Database\Seeders\AppSettingSeeder;
 use Database\Seeders\PlatformSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -246,6 +247,41 @@ class DisputeTest extends TestCase
         $this->assertSame(90.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
         $this->assertSame(OrderStatus::Resolved, $order->refresh()->status);
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'released']);
+    }
+
+    public function test_warranty_order_resolution_pays_the_tech_and_grants_a_revisit_window(): void
+    {
+        [$order, $client, $tech] = $this->completedOrder(['repair' => '100.00']);
+        $dispute = $this->openDisputeOn($order, $client);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/disputes/{$dispute->id}/resolve", ['resolution' => 'warranty_order'])
+            ->assertOk();
+
+        // The work is accepted → the tech is paid, and the client gains a warranty window.
+        $this->assertSame(90.0, (float) $tech->user->wallet()->firstOrFail()->available_balance);
+        $order->refresh();
+        $this->assertSame(OrderStatus::Resolved, $order->status);
+        $this->assertNotNull($order->warranty_until);
+        $this->assertTrue($order->warranty_until->isFuture());
+    }
+
+    public function test_client_can_book_the_corrective_revisit_after_a_warranty_order_resolution(): void
+    {
+        $this->seed(AppSettingSeeder::class);
+        [$order, $client] = $this->completedOrder(['repair' => '100.00']);
+        $dispute = $this->openDisputeOn($order, $client);
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/disputes/{$dispute->id}/resolve", ['resolution' => 'warranty_order'])->assertOk();
+
+        // The order is now Resolved, but the granted warranty lets the client book a free re-visit.
+        $this->actingAs($client, 'sanctum')
+            ->postJson("/api/orders/{$order->id}/warranty-claim", ['scheduled_at' => now()->addDay()->startOfHour()->toDateTimeString()])
+            ->assertCreated()->assertJsonPath('data.kind', 'warranty');
+
+        $this->assertDatabaseHas('orders', ['parent_order_id' => $order->id, 'kind' => 'warranty']);
     }
 
     public function test_partial_refund_splits_between_client_and_technician(): void

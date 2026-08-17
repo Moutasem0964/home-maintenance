@@ -39,7 +39,9 @@ class WarrantyService
             /** @var Order $locked */
             $locked = Order::whereKey($parent->id)->lockForUpdate()->firstOrFail();
 
-            if ($locked->status !== OrderStatus::Completed) {
+            // A completed order carries a warranty; a dispute resolved as "warranty order" grants
+            // the same corrective-visit right on a resolved order.
+            if (! in_array($locked->status, [OrderStatus::Completed, OrderStatus::Resolved], true)) {
                 throw new \DomainException('Only a completed order has a warranty to claim.');
             }
 
