@@ -60,6 +60,20 @@ class OfferActionTest extends TestCase
 
     // ---------- accept ----------
 
+    public function test_cannot_accept_an_urgent_order_while_already_on_an_active_job(): void
+    {
+        $tech = $this->tech();
+        Order::factory()->create(['technician_id' => $tech->id, 'status' => OrderStatus::Accepted]); // busy
+
+        $order = Order::factory()->create(['status' => OrderStatus::Pending]); // urgent by default
+        $offer = $this->offerFor($tech, $order);
+
+        $this->actingAs($this->userOf($tech), 'sanctum')
+            ->postJson("/api/technician/offers/{$offer->id}/accept")->assertStatus(409);
+
+        $this->assertSame(OrderStatus::Pending, $order->refresh()->status);
+    }
+
     public function test_accept_requires_authentication(): void
     {
         $offer = $this->offerFor($this->tech(), Order::factory()->create());

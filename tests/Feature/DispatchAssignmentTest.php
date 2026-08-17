@@ -65,6 +65,17 @@ class DispatchAssignmentTest extends TestCase
         ]);
     }
 
+    public function test_a_technician_busy_on_an_active_job_is_not_offered_a_new_urgent_order(): void
+    {
+        $category = ServiceCategory::factory()->create();
+        $tech = $this->availableTech($category);
+        Order::factory()->create(['technician_id' => $tech->id, 'status' => OrderStatus::Accepted]); // on a job
+
+        $offer = $this->service()->offerToNext($this->pendingOrder($category));
+
+        $this->assertNull($offer); // the only tech is busy → nobody to offer
+    }
+
     public function test_offers_to_the_nearest_technician(): void
     {
         $category = ServiceCategory::factory()->create();

@@ -59,4 +59,32 @@ class OrderListingTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['status']);
     }
+
+    // ---------- show (role-aware) ----------
+
+    public function test_the_client_can_show_their_own_order(): void
+    {
+        $client = User::factory()->create();
+        $order = Order::factory()->create(['client_id' => $client->id]);
+
+        $this->actingAs($client, 'sanctum')->getJson("/api/orders/{$order->id}")
+            ->assertOk()->assertJsonPath('data.id', $order->id);
+    }
+
+    public function test_the_assigned_technician_can_show_the_order(): void
+    {
+        $tech = Technician::factory()->active()->create();
+        $order = Order::factory()->create(['technician_id' => $tech->id]);
+
+        $this->actingAs($tech->user()->firstOrFail(), 'sanctum')->getJson("/api/orders/{$order->id}")
+            ->assertOk()->assertJsonPath('data.id', $order->id);
+    }
+
+    public function test_an_outsider_gets_404_on_show(): void
+    {
+        $order = Order::factory()->create();
+
+        $this->actingAs(User::factory()->create(), 'sanctum')->getJson("/api/orders/{$order->id}")
+            ->assertNotFound();
+    }
 }

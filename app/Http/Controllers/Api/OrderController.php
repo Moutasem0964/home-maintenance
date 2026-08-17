@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\OrderPhotoKind;
+use App\Enums\UserRole;
 use App\Exceptions\InsufficientBalanceException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\OrderIndexRequest;
@@ -64,6 +65,17 @@ class OrderController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        return new OrderResource($user->orders()->findOrFail($order));
+        /** @var Order $model */
+        $model = Order::findOrFail($order);
+
+        // Role-aware access: the client who placed it, the technician assigned to it, or an admin.
+        // 404 (not 403) for anyone else so an outsider can't even confirm the order exists.
+        $isClient = $model->client_id === $user->id;
+        $isTechnician = $model->technician_id !== null && $model->technician_id === $user->technician()->value('id');
+        $isAdmin = $user->role === UserRole::Admin;
+
+        abort_unless($isClient || $isTechnician || $isAdmin, 404);
+
+        return new OrderResource($model);
     }
 }

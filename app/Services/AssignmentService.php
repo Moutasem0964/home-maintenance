@@ -22,6 +22,13 @@ use Illuminate\Support\Facades\DB;
 
 class AssignmentService
 {
+    /** Statuses that mean a technician is currently occupied with an on-site job. */
+    private const ACTIVE_STATUSES = [
+        OrderStatus::Accepted,
+        OrderStatus::InProgress,
+        OrderStatus::WaitingForParts,
+    ];
+
     public function __construct(
         private readonly SchedulingService $schedulingService,
         private readonly EscrowService $escrowService,
@@ -166,6 +173,8 @@ class AssignmentService
             // Only trust a recent fix — a stale position (went online at home, then drove off)
             // must not be dispatched to. A missing/old location ping drops the tech from the pool.
             ->where('location_updated_at', '>', now()->subMinutes((int) AppSetting::get('location_ttl_minutes', 10)))
+            // One on-site job at a time — a technician busy with an active order is out of the pool.
+            ->whereDoesntHave('orders', fn (Builder $query) => $query->whereIn('status', self::ACTIVE_STATUSES))
             ->whereNotIn('id', $exclude)
             ->when($only !== null, fn (Builder $query) => $query->whereIn('id', $only))
             ->whereRelation('services', 'service_categories.id', $order->service_category_id)
@@ -229,6 +238,15 @@ class AssignmentService
                 || $lockedOffer->expires_at->isPast()
                 || $order->status !== OrderStatus::Pending) {
                 throw new OfferUnavailableException('This offer can no longer be accepted.');
+            }
+
+            // One on-site job at a time: block accepting an urgent order while another is active
+            // (guards the race where two offers were pending before the first was accepted).
+            if ($order->type === OrderType::Urgent
+                && Order::where('technician_id', $lockedOffer->technician_id)
+                    ->whereIn('status', self::ACTIVE_STATUSES)
+                    ->exists()) {
+                throw new OfferUnavailableException('You already have an active job — finish it before taking another.');
             }
 
             // A scheduled order books an appointment and waits for activation; an
