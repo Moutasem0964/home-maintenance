@@ -1834,6 +1834,43 @@
       },
       "description": "Lightweight location heartbeat — the app sends it every ~3 min or ~300 m while available. Refreshes the dispatch snapshot + its freshness stamp so a stale position can't misroute urgent orders."
      }
+    },
+    {
+     "name": "Save Sham Cash Account (technician)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/technician/sham-cash-account",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "sham-cash-account"
+       ]
+      },
+      "description": "Save (or replace) the technician's Sham Cash payout account. Required before a withdrawal can be requested. account_number is exactly 16 digits (stored encrypted); account_holder_name max 255.",
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"account_number\": \"1234567890123456\",\n  \"account_holder_name\": \"محمد المهندس\"\n}"
+      }
+     }
     }
    ]
   },
@@ -2579,7 +2616,7 @@
         "withdrawals"
        ]
       },
-      "description": "Technician cash-out. Reserves the amount from available balance (available -> held). Guards: >= min_withdrawal_amount, <= available, one at a time, blocked during an open dispute.",
+      "description": "Technician cash-out — amount only. The payout goes to the technician's saved Sham Cash account (set it first via PUT /technician/sham-cash-account). Reserves the amount (available -> held). Guards: >= min_withdrawal_amount, <= available, one at a time, blocked during an open dispute, and blocked if no Sham Cash account is saved.",
       "body": {
        "mode": "raw",
        "options": {
@@ -2587,7 +2624,7 @@
          "language": "json"
         }
        },
-       "raw": "{\n  \"amount\": \"100.00\",\n  \"method\": \"bank_account\",\n  \"destination_details\": \"IBAN SY.. / account no.\"\n}"
+       "raw": "{\n  \"amount\": \"100.00\"\n}"
       }
      }
     },
