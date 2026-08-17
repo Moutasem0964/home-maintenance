@@ -2,17 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\NotificationCategory;
-use App\Enums\TechnicianFlagOutcome;
-use App\Enums\TechnicianStatus;
 use App\Http\Controllers\Concerns\AuthorizesAdmin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TechnicianResource;
-use App\Models\AppSetting;
 use App\Models\Technician;
 use App\Models\User;
-use App\Services\NotificationService;
-use App\Services\TechnicianFlagService;
+use App\Services\TechnicianModerationService;
 use Illuminate\Http\Request;
 
 class AdminTechnicianController extends Controller
@@ -20,68 +15,39 @@ class AdminTechnicianController extends Controller
     use AuthorizesAdmin;
 
     public function __construct(
-        private readonly TechnicianFlagService $flagService,
+        private readonly TechnicianModerationService $moderation,
     ) {}
 
-    /** Approve a pending technician into the active pool. */
-    public function approve(Request $request, int $technician, NotificationService $notificationService): TechnicianResource
+    /** Approve a pending technician into the probation trial. */
+    public function approve(Request $request, int $technician): TechnicianResource
     {
         $this->assertAdmin($request);
 
-        // Onboarding done (office visit / contract / deposit happen offline) → start the
-        // trial in probation, not straight to active. Auto-promotion handles the rest.
-        $model = Technician::findOrFail($technician);
-        $model->update([
-            'status' => TechnicianStatus::Probation,
-            'daily_order_limit' => (int) AppSetting::get('probation_daily_limit', 3),
-        ]);
-
-        $notificationService->notify($model->user, NotificationCategory::Admin, 'تم اعتماد حسابك', 'تمت الموافقة على حسابك كفني — يمكنك الآن استقبال الطلبات.');
+        $model = $this->moderation->approve(Technician::findOrFail($technician));
 
         return new TechnicianResource($model->load('services'));
     }
 
-    /**
-     * Sanction a technician for reliability failures (raised as technician_flags off
-     * no-show / withdraw). Suspend = probation with a capped daily order limit and
-     * taken offline; the tech can work again once an admin reinstates (approve).
-     */
-    public function suspend(Request $request, int $technician, NotificationService $notificationService): TechnicianResource
+    /** Suspend a technician for reliability failures (probation + offline; open flags resolved). */
+    public function suspend(Request $request, int $technician): TechnicianResource
     {
         $this->assertAdmin($request);
-        $note = $this->sanctionNote($request);
 
         /** @var User $user */
         $user = $request->user();
-        $model = Technician::findOrFail($technician);
-        $model->update([
-            'status' => TechnicianStatus::Probation,
-            'daily_order_limit' => (int) AppSetting::get('probation_daily_limit', 3),
-            'is_available' => false,
-        ]);
-        $this->flagService->resolveOpenFor($model->id, $user, TechnicianFlagOutcome::Suspended, $note);
-
-        $notificationService->notify($model->user, NotificationCategory::Admin, 'تم إيقاف حسابك', 'تم إيقاف حسابك مؤقتاً — تواصل مع الإدارة.');
+        $model = $this->moderation->suspend(Technician::findOrFail($technician), $user, $this->sanctionNote($request));
 
         return new TechnicianResource($model->load('services'));
     }
 
-    /** Ban a technician outright and take them offline (removed from anywhere, per the status lifecycle). */
-    public function ban(Request $request, int $technician, NotificationService $notificationService): TechnicianResource
+    /** Ban a technician outright and take them offline. */
+    public function ban(Request $request, int $technician): TechnicianResource
     {
         $this->assertAdmin($request);
-        $note = $this->sanctionNote($request);
 
         /** @var User $user */
         $user = $request->user();
-        $model = Technician::findOrFail($technician);
-        $model->update([
-            'status' => TechnicianStatus::Banned,
-            'is_available' => false,
-        ]);
-        $this->flagService->resolveOpenFor($model->id, $user, TechnicianFlagOutcome::Banned, $note);
-
-        $notificationService->notify($model->user, NotificationCategory::Admin, 'تم حظر حسابك', 'تم حظر حسابك على المنصة.');
+        $model = $this->moderation->ban(Technician::findOrFail($technician), $user, $this->sanctionNote($request));
 
         return new TechnicianResource($model->load('services'));
     }
