@@ -9,18 +9,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property TechnicianStatus $status
  * @property int|null $daily_order_limit
  * @property numeric-string|null $rating_avg
+ * @property Carbon|null $location_updated_at
  */
 class Technician extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'status', 'is_available', 'current_lat', 'current_lng',
+        'user_id', 'status', 'is_available', 'current_lat', 'current_lng', 'location_updated_at',
         'id_front_url', 'id_back_url', 'selfie_url', 'criminal_record_url', 'proof_url',
         'charter_accepted_at', 'daily_order_limit',
     ];
@@ -32,6 +34,7 @@ class Technician extends Model
             'is_available' => 'boolean',
             'current_lat' => 'decimal:7',
             'current_lng' => 'decimal:7',
+            'location_updated_at' => 'datetime',
             'rating_avg' => 'decimal:2',
             'acceptance_rate' => 'decimal:2',
             // Sensitive verification documents — encrypted at rest (SRS note 10)

@@ -33,6 +33,7 @@ class TechnicianFactory extends Factory
             'is_available' => true,
             'current_lat' => 33.5,
             'current_lng' => 36.3,
+            'location_updated_at' => now(),
         ]);
     }
 }

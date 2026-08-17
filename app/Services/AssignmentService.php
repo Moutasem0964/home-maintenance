@@ -163,6 +163,9 @@ class AssignmentService
             ->where('is_available', true)
             ->whereNotNull('current_lat')
             ->whereNotNull('current_lng')
+            // Only trust a recent fix — a stale position (went online at home, then drove off)
+            // must not be dispatched to. A missing/old location ping drops the tech from the pool.
+            ->where('location_updated_at', '>', now()->subMinutes((int) AppSetting::get('location_ttl_minutes', 10)))
             ->whereNotIn('id', $exclude)
             ->when($only !== null, fn (Builder $query) => $query->whereIn('id', $only))
             ->whereRelation('services', 'service_categories.id', $order->service_category_id)

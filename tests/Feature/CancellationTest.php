@@ -172,7 +172,7 @@ class CancellationTest extends TestCase
             'expires_at' => now()->subMinute(),
         ]);
         // ...and a second qualified tech is available to receive the re-offer.
-        $other = Technician::factory()->active()->create(['is_available' => true, 'current_lat' => 33.5, 'current_lng' => 36.3]);
+        $other = Technician::factory()->active()->create(['is_available' => true, 'current_lat' => 33.5, 'current_lng' => 36.3, 'location_updated_at' => now()]);
         $other->services()->attach($cat->id);
 
         $this->actingAs($tech->user()->firstOrFail(), 'sanctum')

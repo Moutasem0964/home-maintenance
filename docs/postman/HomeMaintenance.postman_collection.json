@@ -1793,6 +1793,43 @@
       },
       "description": "Progress toward promotion out of probation (completed orders + rating vs the thresholds)."
      }
+    },
+    {
+     "name": "Update Location (heartbeat)",
+     "request": {
+      "method": "PATCH",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"current_lat\": 33.5138,\n  \"current_lng\": 36.2765\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/technician/location",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "technician",
+        "location"
+       ]
+      },
+      "description": "Lightweight location heartbeat — the app sends it every ~3 min or ~300 m while available. Refreshes the dispatch snapshot + its freshness stamp so a stale position can't misroute urgent orders."
+     }
     }
    ]
   },
