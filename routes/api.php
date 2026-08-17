@@ -93,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('orders/{order}/quotes', [QuoteController::class, 'index']);
     Route::post('orders/{order}/quotes', [QuoteController::class, 'store']);
+    Route::post('orders/{order}/quotes/addon', [QuoteController::class, 'storeAddon']);
     Route::post('quotes/{quote}/approve', [QuoteController::class, 'approve']);
     Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject']);
 

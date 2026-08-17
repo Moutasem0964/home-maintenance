@@ -1960,6 +1960,45 @@
       },
       "description": "Client rejects -> order closes as inspection_only."
      }
+    },
+    {
+     "name": "Send Add-on Quote (technician)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       },
+       "raw": "{\n  \"labor_cost\": \"80.00\",\n  \"warranty_days\": 30,\n  \"parts\": [\n    { \"name\": \"Extra part\", \"price\": \"20.00\", \"classification\": \"standard\", \"image_url\": \"https://example.com/p.jpg\" }\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/orders/{{order_id}}/quotes/addon",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "orders",
+        "{{order_id}}",
+        "quotes",
+        "addon"
+       ]
+      },
+      "description": "Technician sends an add-on quote for an extra fault found while the repair is in progress. Approve/reject via the existing Quote endpoints; approving holds the extra fee and the order keeps running."
+     }
     }
    ]
   },
