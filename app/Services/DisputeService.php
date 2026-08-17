@@ -7,6 +7,7 @@ use App\Enums\DisputeResolution;
 use App\Enums\DisputeStatus;
 use App\Enums\OrderEventType;
 use App\Enums\OrderStatus;
+use App\Models\AppSetting;
 use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\OrderEvent;
@@ -100,12 +101,29 @@ class DisputeService
                 DisputeResolution::FullRefund => $this->escrowService->refundOrder($order, "{$op}:refund"),
                 DisputeResolution::ReleaseToTechnician => $this->escrowService->releaseFunds($order, "{$op}:release"),
                 DisputeResolution::PartialRefund => $this->escrowService->settlePartial($order, (string) $refundAmount, "{$op}:partial"),
-                DisputeResolution::WarrantyOrder => throw new \DomainException('Warranty-order resolution is not implemented yet.'),
+                DisputeResolution::WarrantyOrder => $this->resolveAsWarrantyOrder($order, $op),
             };
 
             OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::DisputeResolved]);
 
             return $locked;
         });
+    }
+
+    /**
+     * Warranty-order resolution: the work is accepted, so the held repair fee is released to the
+     * technician — but the client is owed a corrective re-visit. Grant (or extend) a warranty
+     * window so the client can book a free follow-up through the normal warranty-claim flow, which
+     * runs the same original-tech / paid-substitute machinery as any warranty claim.
+     */
+    private function resolveAsWarrantyOrder(Order $order, string $op): void
+    {
+        $this->escrowService->releaseFunds($order, "{$op}:release");
+
+        $window = now()->addDays((int) AppSetting::get('dispute_warranty_days', 14));
+        if ($order->warranty_until === null || $order->warranty_until->lt($window)) {
+            $order->warranty_until = $window;
+            $order->save();
+        }
     }
 }
