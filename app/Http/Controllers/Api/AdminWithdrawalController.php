@@ -34,7 +34,8 @@ class AdminWithdrawalController extends Controller
         $this->ensureAdmin($request);
 
         try {
-            $resolved = $withdrawalService->complete($withdrawal, $request->user(), $request->file('receipt'));
+            $receiptPath = $request->file('receipt')->store('withdrawal-receipts', 'local');
+            $resolved = $withdrawalService->complete($withdrawal, $request->user(), $receiptPath);
         } catch (\DomainException $e) {
             abort(409, $e->getMessage());
         }
