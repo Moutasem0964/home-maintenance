@@ -24,7 +24,9 @@ class StoreQuoteRequest extends FormRequest
             'parts.*.name' => ['required', 'string', 'max:255'],
             'parts.*.price' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'parts.*.classification' => ['required', Rule::enum(PartClassification::class)],
-            'parts.*.image_url' => ['required', 'url', 'max:2048'],
+            // The actual photo of the part (uploaded), stored privately and served via a
+            // streaming route — replaces the old client-supplied image_url string.
+            'parts.*.image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }

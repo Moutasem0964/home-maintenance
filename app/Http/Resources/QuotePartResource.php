@@ -17,7 +17,9 @@ class QuotePartResource extends JsonResource
             'name' => $this->name,
             'price' => $this->price,
             'classification' => $this->classification,
-            'image_url' => $this->image_url,
+            // Same field name and shape as before (a loadable URL); now points at the
+            // authed streaming route for the privately-stored photo, like order photos.
+            'image_url' => url("/api/quote-parts/{$this->id}/image"),
         ];
     }
 }
