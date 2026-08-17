@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\OrderPhotoController;
 use App\Http\Controllers\Api\PartsWaitController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\QuotePartController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TechnicianController;
 use App\Http\Controllers\Api\TechnicianOfferController;
@@ -90,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('addresses', AddressController::class);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
     Route::get('order-photos/{orderPhoto}', [OrderPhotoController::class, 'show']);
+    Route::get('quote-parts/{quotePart}/image', [QuotePartController::class, 'image']);
 
     Route::get('orders/{order}/quotes', [QuoteController::class, 'index']);
     Route::post('orders/{order}/quotes', [QuoteController::class, 'store']);

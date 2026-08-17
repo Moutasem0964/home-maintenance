@@ -15,6 +15,8 @@ use App\Services\QuoteService;
 use App\Services\WalletService;
 use Database\Seeders\AppSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AddonQuoteTest extends TestCase
@@ -25,6 +27,7 @@ class AddonQuoteTest extends TestCase
     {
         parent::setUp();
         $this->seed(AppSettingSeeder::class);
+        Storage::fake('local');
     }
 
     /** @return array{0: User, 1: Order, 2: Technician} — funded client + in-progress order + tech. */
@@ -52,7 +55,7 @@ class AddonQuoteTest extends TestCase
         return array_merge([
             'labor_cost' => '80.00',
             'parts' => [
-                ['name' => 'Extra valve', 'price' => '20.00', 'classification' => 'standard', 'image_url' => 'https://example.com/p.jpg'],
+                ['name' => 'Extra valve', 'price' => '20.00', 'classification' => 'standard', 'image' => UploadedFile::fake()->image('p.jpg')],
             ],
         ], $overrides);
     }
@@ -74,7 +77,7 @@ class AddonQuoteTest extends TestCase
         [, $order, $tech] = $this->inProgressOrder();
 
         $this->actingAs($tech->user, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/quotes/addon", $this->payload())
+            ->post("/api/orders/{$order->id}/quotes/addon", $this->payload(), ['Accept' => 'application/json'])
             ->assertCreated()->assertJsonPath('data.type', 'addon');
 
         $this->assertDatabaseHas('quotes', ['order_id' => $order->id, 'type' => 'addon', 'status' => 'pending']);
@@ -87,7 +90,7 @@ class AddonQuoteTest extends TestCase
         $order->update(['status' => OrderStatus::Accepted]);
 
         $this->actingAs($tech->user, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/quotes/addon", $this->payload())->assertStatus(409);
+            ->post("/api/orders/{$order->id}/quotes/addon", $this->payload(), ['Accept' => 'application/json'])->assertStatus(409);
     }
 
     public function test_only_the_assigned_tech_can_send_an_addon(): void
@@ -96,7 +99,7 @@ class AddonQuoteTest extends TestCase
         $other = Technician::factory()->active()->create();
 
         $this->actingAs($other->user, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/quotes/addon", $this->payload())->assertForbidden();
+            ->post("/api/orders/{$order->id}/quotes/addon", $this->payload(), ['Accept' => 'application/json'])->assertForbidden();
     }
 
     public function test_cannot_send_an_addon_while_a_quote_is_pending(): void
@@ -105,7 +108,7 @@ class AddonQuoteTest extends TestCase
         $this->addonQuote($order, $tech); // an outstanding pending quote
 
         $this->actingAs($tech->user, 'sanctum')
-            ->postJson("/api/orders/{$order->id}/quotes/addon", $this->payload())->assertStatus(409);
+            ->post("/api/orders/{$order->id}/quotes/addon", $this->payload(), ['Accept' => 'application/json'])->assertStatus(409);
     }
 
     public function test_approving_an_addon_holds_extra_funds_and_keeps_the_order_in_progress(): void

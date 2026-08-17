@@ -1888,13 +1888,39 @@
        }
       ],
       "body": {
-       "mode": "raw",
-       "options": {
-        "raw": {
-         "language": "json"
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "labor_cost",
+         "value": "80.00",
+         "type": "text"
+        },
+        {
+         "key": "warranty_days",
+         "value": "30",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][name]",
+         "value": "Valve",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][price]",
+         "value": "20.00",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][classification]",
+         "value": "standard",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][image]",
+         "type": "file",
+         "src": []
         }
-       },
-       "raw": "{\n  \"labor_cost\": \"80.00\",\n  \"warranty_days\": 30,\n  \"justification\": null,\n  \"parts\": [\n    { \"name\": \"Valve\", \"price\": \"20.00\", \"classification\": \"standard\", \"image_url\": \"https://example.com/part.jpg\" }\n  ]\n}"
+       ]
       },
       "url": {
        "raw": "{{base_url}}/api/orders/{{order_id}}/quotes",
@@ -1908,7 +1934,7 @@
         "quotes"
        ]
       },
-      "description": "Assigned technician sends the initial quote (labor + parts). Order must be 'accepted'. A justification is required when the total exceeds the category guide price x the anomaly multiplier."
+      "description": "Initial quote after arriving on-site. multipart/form-data: each part's photo is uploaded as a file (parts[i][image]); the server stores it privately and returns image_url as a streaming URL."
      }
     },
     {
@@ -2006,20 +2032,37 @@
        {
         "key": "Accept",
         "value": "application/json"
-       },
-       {
-        "key": "Content-Type",
-        "value": "application/json"
        }
       ],
       "body": {
-       "mode": "raw",
-       "options": {
-        "raw": {
-         "language": "json"
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "labor_cost",
+         "value": "80.00",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][name]",
+         "value": "Valve",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][price]",
+         "value": "20.00",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][classification]",
+         "value": "standard",
+         "type": "text"
+        },
+        {
+         "key": "parts[0][image]",
+         "type": "file",
+         "src": []
         }
-       },
-       "raw": "{\n  \"labor_cost\": \"80.00\",\n  \"warranty_days\": 30,\n  \"parts\": [\n    { \"name\": \"Extra part\", \"price\": \"20.00\", \"classification\": \"standard\", \"image_url\": \"https://example.com/p.jpg\" }\n  ]\n}"
+       ]
       },
       "url": {
        "raw": "{{base_url}}/api/orders/{{order_id}}/quotes/addon",
@@ -2034,7 +2077,7 @@
         "addon"
        ]
       },
-      "description": "Technician sends an add-on quote for an extra fault found while the repair is in progress. Approve/reject via the existing Quote endpoints; approving holds the extra fee and the order keeps running."
+      "description": "Add-on quote for extra work found mid-repair. multipart/form-data: part photos uploaded as files (parts[i][image])."
      }
     }
    ]

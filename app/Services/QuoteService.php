@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderEvent;
 use App\Models\Quote;
 use App\Models\ServiceCategory;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -218,11 +219,14 @@ class QuoteService
             ]);
 
             foreach ($parts as $part) {
+                /** @var UploadedFile $image */
+                $image = $part['image'];
                 $quote->parts()->create([
                     'name' => $part['name'],
                     'price' => $part['price'],
                     'classification' => $part['classification'],
-                    'image_url' => $part['image_url'],
+                    // Stored privately; the resource turns this path into a streaming URL.
+                    'image_url' => $image->store("quotes/{$quote->id}/parts", 'local'),
                 ]);
             }
 

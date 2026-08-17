@@ -18,7 +18,8 @@ class QuotePartFactory extends Factory
             'name' => fake()->words(2, true),
             'price' => fake()->randomFloat(2, 5, 100),
             'classification' => PartClassification::Standard,
-            'image_url' => fake()->imageUrl(),
+            // Now a private storage path (the resource builds the streaming URL from the id).
+            'image_url' => 'quotes/'.fake()->numberBetween(1, 999).'/parts/'.fake()->uuid().'.jpg',
         ];
     }
 }
