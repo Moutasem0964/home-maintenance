@@ -38,34 +38,24 @@ class QuoteService
         $total = $this->totalFromInput((string) $data['labor_cost'], $parts);
         $this->assertJustifiedIfAnomalous($order, $total, $justification);
 
-        return DB::transaction(function () use ($order, $data, $parts) {
-            /** @var Quote $quote */
-            $quote = $order->quotes()->create([
-                'technician_id' => $order->technician_id,
-                'type' => QuoteType::Initial,
-                'labor_cost' => $data['labor_cost'],
-                'warranty_days' => $data['warranty_days'] ?? 0,
-                'justification' => $data['justification'] ?? null,
-                'status' => QuoteStatus::Pending,
-                'expires_at' => now()->addHours((int) AppSetting::get('quote_expiry_hours', 24)),
-            ]);
-
-            foreach ($parts as $part) {
-                $quote->parts()->create([
-                    'name' => $part['name'],
-                    'price' => $part['price'],
-                    'classification' => $part['classification'],
-                    'image_url' => $part['image_url'],
-                ]);
-            }
-
-            OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteSent]);
-
-            return $quote;
-        });
+        return $this->persistQuote($order, $data, QuoteType::Initial);
     }
 
-    /** Client approves: hold the repair fee in escrow and move the order into repair. */
+    /**
+     * Technician sends an add-on quote for an extra fault found mid-job. There's no anomaly gate
+     * — it's genuinely new work priced on its own, on top of the already-approved initial repair.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function createAddonQuote(Order $order, array $data): Quote
+    {
+        return $this->persistQuote($order, $data, QuoteType::Addon);
+    }
+
+    /**
+     * Client approves: hold this quote's fee in escrow. The initial quote also starts the repair
+     * (Accepted -> InProgress); an add-on just adds another held payment while work continues.
+     */
     public function approve(Quote $quote): Order
     {
         return DB::transaction(function () use ($quote) {
@@ -87,16 +77,23 @@ class QuoteService
             );
 
             $lockedQuote->update(['status' => QuoteStatus::Approved]);
-            $order->update(['status' => OrderStatus::InProgress]);
-
             OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteApproved]);
-            OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::WorkStarted]);
+
+            // Only the first (initial) quote moves the order into the repair phase.
+            if ($lockedQuote->type === QuoteType::Initial) {
+                $order->update(['status' => OrderStatus::InProgress]);
+                OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::WorkStarted]);
+            }
 
             return $order;
         });
     }
 
-    /** Client rejects: the order closes as inspection-only and the inspection fee is released to the tech. */
+    /**
+     * Client rejects. An initial rejection closes the order as inspection-only and releases the
+     * inspection fee to the tech; an add-on rejection just declines the extra work — the order
+     * keeps running on the already-approved repair.
+     */
     public function reject(Quote $quote): Order
     {
         return DB::transaction(function () use ($quote) {
@@ -110,17 +107,22 @@ class QuoteService
             }
 
             $lockedQuote->update(['status' => QuoteStatus::Rejected]);
-            $order->update(['status' => OrderStatus::InspectionOnly]);
-            // The technician still performed the diagnostic visit — release the inspection fee.
-            $this->escrowService->releaseFunds($order, "inspection-only:{$order->id}");
-
             OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteRejected]);
+
+            if ($lockedQuote->type === QuoteType::Initial) {
+                $order->update(['status' => OrderStatus::InspectionOnly]);
+                // The technician still performed the diagnostic visit — release the inspection fee.
+                $this->escrowService->releaseFunds($order, "inspection-only:{$order->id}");
+            }
 
             return $order;
         });
     }
 
-    /** Sweep unanswered quotes past their expiry: mark Expired, close the order as inspection-only. */
+    /**
+     * Sweep unanswered quotes past their expiry. An initial quote closes the order as
+     * inspection-only; an add-on simply lapses and the order carries on unchanged.
+     */
     public function expireStaleQuotes(): int
     {
         $stale = Quote::query()
@@ -142,38 +144,92 @@ class QuoteService
                 }
 
                 $locked->update(['status' => QuoteStatus::Expired]);
-                $order->update(['status' => OrderStatus::InspectionOnly]);
-                $this->escrowService->releaseFunds($order, "inspection-only:{$order->id}");
                 OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteExpired]);
+
+                if ($locked->type === QuoteType::Initial) {
+                    $order->update(['status' => OrderStatus::InspectionOnly]);
+                    $this->escrowService->releaseFunds($order, "inspection-only:{$order->id}");
+                }
 
                 return true;
             });
 
             if ($done) {
                 $expired++;
-
                 /** @var Order $order */
                 $order = $quote->order()->firstOrFail();
-                $this->notificationService->notify(
-                    $order->client,
-                    NotificationCategory::Orders,
-                    'انتهت صلاحية العرض',
-                    'انتهت مهلة عرض السعر — أصبح الطلب كشفاً فقط.',
-                    $order,
-                );
-                if ($order->technician_id !== null) {
-                    $this->notificationService->notify(
-                        $order->technician->user,
-                        NotificationCategory::Orders,
-                        'انتهت صلاحية عرضك',
-                        'لم يوافق العميل على عرض السعر ضمن المهلة.',
-                        $order,
-                    );
-                }
+                $this->notifyExpiry($order, $quote->type);
             }
         }
 
         return $expired;
+    }
+
+    private function notifyExpiry(Order $order, QuoteType $type): void
+    {
+        if ($type === QuoteType::Addon) {
+            $this->notificationService->notify(
+                $order->client,
+                NotificationCategory::Orders,
+                'انتهت صلاحية العرض الإضافي',
+                'انتهت مهلة العرض الإضافي دون رد — يستمر الطلب كالمعتاد.',
+                $order,
+            );
+
+            return;
+        }
+
+        $this->notificationService->notify(
+            $order->client,
+            NotificationCategory::Orders,
+            'انتهت صلاحية العرض',
+            'انتهت مهلة عرض السعر — أصبح الطلب كشفاً فقط.',
+            $order,
+        );
+        if ($order->technician_id !== null) {
+            $this->notificationService->notify(
+                $order->technician->user,
+                NotificationCategory::Orders,
+                'انتهت صلاحية عرضك',
+                'لم يوافق العميل على عرض السعر ضمن المهلة.',
+                $order,
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function persistQuote(Order $order, array $data, QuoteType $type): Quote
+    {
+        /** @var array<int, array<string, mixed>> $parts */
+        $parts = $data['parts'];
+
+        return DB::transaction(function () use ($order, $data, $parts, $type) {
+            /** @var Quote $quote */
+            $quote = $order->quotes()->create([
+                'technician_id' => $order->technician_id,
+                'type' => $type,
+                'labor_cost' => $data['labor_cost'],
+                'warranty_days' => $data['warranty_days'] ?? 0,
+                'justification' => $data['justification'] ?? null,
+                'status' => QuoteStatus::Pending,
+                'expires_at' => now()->addHours((int) AppSetting::get('quote_expiry_hours', 24)),
+            ]);
+
+            foreach ($parts as $part) {
+                $quote->parts()->create([
+                    'name' => $part['name'],
+                    'price' => $part['price'],
+                    'classification' => $part['classification'],
+                    'image_url' => $part['image_url'],
+                ]);
+            }
+
+            OrderEvent::create(['order_id' => $order->id, 'event_type' => OrderEventType::QuoteSent]);
+
+            return $quote;
+        });
     }
 
     /** @param  array<int, array<string, mixed>>  $parts */

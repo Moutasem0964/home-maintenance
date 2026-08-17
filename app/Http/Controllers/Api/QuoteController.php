@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\NotificationCategory;
 use App\Enums\OrderStatus;
 use App\Enums\QuoteStatus;
+use App\Enums\QuoteType;
 use App\Exceptions\InsufficientBalanceException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Quote\StoreQuoteRequest;
@@ -58,10 +59,39 @@ class QuoteController extends Controller
         return (new QuoteResource($quote->load('parts')))->response()->setStatusCode(201);
     }
 
+    /** Technician sends an add-on quote for an extra fault found while the repair is in progress. */
+    public function storeAddon(StoreQuoteRequest $request, int $order, QuoteService $quoteService, NotificationService $notificationService): JsonResponse
+    {
+        $orderModel = Order::findOrFail($order);
+
+        /** @var User $user */
+        $user = $request->user();
+        /** @var Technician|null $technician */
+        $technician = $user->technician()->first();
+
+        abort_if($technician === null || $orderModel->technician_id !== $technician->id, 403, 'This is not your order.');
+        abort_unless($orderModel->status === OrderStatus::InProgress, 409, 'Add-on quotes are only allowed while the repair is in progress.');
+        abort_if($orderModel->quotes()->where('status', QuoteStatus::Pending)->exists(), 409, 'A pending quote already exists.');
+
+        $quote = $quoteService->createAddonQuote($orderModel, $request->validated());
+
+        $notificationService->notify(
+            $orderModel->client,
+            NotificationCategory::Orders,
+            'وصل عرض سعر إضافي',
+            'اكتشف الفني عملاً إضافياً وأرسل عرض سعر إضافي — راجعه للموافقة أو الرفض.',
+            $orderModel,
+        );
+
+        return (new QuoteResource($quote->load('parts')))->response()->setStatusCode(201);
+    }
+
     public function approve(Request $request, int $quote, QuoteService $quoteService, NotificationService $notificationService): OrderResource
     {
         $quoteModel = Quote::findOrFail($quote);
         $this->assertClient($request, $quoteModel);
+
+        $isAddon = $quoteModel->type === QuoteType::Addon;
 
         try {
             $order = $quoteService->approve($quoteModel);
@@ -69,8 +99,8 @@ class QuoteController extends Controller
             $notificationService->notify(
                 $order->technician->user,
                 NotificationCategory::Orders,
-                'تمت الموافقة على العرض',
-                'وافق العميل على عرض السعر — يمكنك بدء العمل.',
+                $isAddon ? 'تمت الموافقة على العرض الإضافي' : 'تمت الموافقة على العرض',
+                $isAddon ? 'وافق العميل على العرض الإضافي — تابع العمل.' : 'وافق العميل على عرض السعر — يمكنك بدء العمل.',
                 $order,
             );
 
@@ -87,14 +117,16 @@ class QuoteController extends Controller
         $quoteModel = Quote::findOrFail($quote);
         $this->assertClient($request, $quoteModel);
 
+        $isAddon = $quoteModel->type === QuoteType::Addon;
+
         try {
             $order = $quoteService->reject($quoteModel);
 
             $notificationService->notify(
                 $order->technician->user,
                 NotificationCategory::Orders,
-                'تم رفض العرض',
-                'رفض العميل عرض السعر.',
+                $isAddon ? 'تم رفض العرض الإضافي' : 'تم رفض العرض',
+                $isAddon ? 'رفض العميل العرض الإضافي.' : 'رفض العميل عرض السعر.',
                 $order,
             );
 
