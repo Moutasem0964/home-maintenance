@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -15,7 +17,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property UserRole $role
  * @property bool $is_banned
  */
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
@@ -72,5 +74,14 @@ class User extends Authenticatable
     public function isTechnician(): bool
     {
         return $this->role === UserRole::Technician;
+    }
+
+    /**
+     * Gate for the Filament admin panel. Without this, in production every authenticated
+     * user could reach /admin — so only non-banned admins get in.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->role === UserRole::Admin && ! $this->is_banned;
     }
 }

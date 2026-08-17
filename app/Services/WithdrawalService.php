@@ -13,7 +13,6 @@ use App\Models\Technician;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -87,10 +86,14 @@ class WithdrawalService
         });
     }
 
-    /** Admin paid the technician externally and uploaded proof: the reserved funds leave the ledger. */
-    public function complete(Withdrawal $withdrawal, User $admin, UploadedFile $receipt): Withdrawal
+    /**
+     * Admin paid the technician externally and uploaded proof: the reserved funds leave the
+     * ledger. The receipt is already stored by the caller (API request or admin panel); we
+     * only record its path here.
+     */
+    public function complete(Withdrawal $withdrawal, User $admin, string $receiptPath): Withdrawal
     {
-        return DB::transaction(function () use ($withdrawal, $admin, $receipt): Withdrawal {
+        return DB::transaction(function () use ($withdrawal, $admin, $receiptPath): Withdrawal {
             /** @var Withdrawal $locked */
             $locked = Withdrawal::whereKey($withdrawal->id)->lockForUpdate()->firstOrFail();
 
@@ -112,7 +115,7 @@ class WithdrawalService
             $locked->update([
                 'status' => WithdrawalStatus::Completed,
                 'processed_by' => $admin->id,
-                'receipt_url' => $receipt->store('withdrawal-receipts', 'local'),
+                'receipt_url' => $receiptPath,
             ]);
 
             $this->notificationService->notify(
