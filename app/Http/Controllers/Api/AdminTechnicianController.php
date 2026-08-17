@@ -52,6 +52,16 @@ class AdminTechnicianController extends Controller
         return new TechnicianResource($model->load('services'));
     }
 
+    /** Lift a ban and restart the technician in a fresh probation trial. */
+    public function reinstate(Request $request, int $technician): TechnicianResource
+    {
+        $this->assertAdmin($request);
+
+        $model = $this->moderation->reinstate(Technician::findOrFail($technician));
+
+        return new TechnicianResource($model->load('services'));
+    }
+
     /** Optional free-text reason the admin attaches to a sanction. */
     private function sanctionNote(Request $request): ?string
     {

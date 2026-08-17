@@ -1520,6 +1520,32 @@
      }
     },
     {
+     "name": "Reinstate Technician (admin)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/admin/technicians/{{technician_id}}/reinstate",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "admin",
+        "technicians",
+        "{{technician_id}}",
+        "reinstate"
+       ]
+      },
+      "description": "Lift a ban — restarts the technician in a fresh probation trial."
+     }
+    },
+    {
      "name": "List Technician Flags (admin)",
      "event": [
       {

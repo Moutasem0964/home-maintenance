@@ -61,4 +61,17 @@ class TechnicianModerationService
 
         return $technician;
     }
+
+    /** Lift a ban: restart the technician in a fresh probation trial so they must re-earn Active. */
+    public function reinstate(Technician $technician): Technician
+    {
+        $technician->update([
+            'status' => TechnicianStatus::Probation,
+            'daily_order_limit' => (int) AppSetting::get('probation_daily_limit', 3),
+        ]);
+
+        $this->notificationService->notify($technician->user, NotificationCategory::Admin, 'تمت إعادة تفعيل حسابك', 'تمت إعادة تفعيل حسابك كفني تحت التجربة — يمكنك العمل مجدداً.');
+
+        return $technician;
+    }
 }

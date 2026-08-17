@@ -139,6 +139,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('admin/technicians/{technician}/approve', [AdminTechnicianController::class, 'approve']);
     Route::post('admin/technicians/{technician}/suspend', [AdminTechnicianController::class, 'suspend']);
     Route::post('admin/technicians/{technician}/ban', [AdminTechnicianController::class, 'ban']);
+    Route::post('admin/technicians/{technician}/reinstate', [AdminTechnicianController::class, 'reinstate']);
 
     Route::post('admin/orders/{order}/no-show/resolve', [AdminNoShowController::class, 'resolve']);
 
