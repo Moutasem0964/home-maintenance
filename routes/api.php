@@ -120,6 +120,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('technician/probation-progress', [TechnicianController::class, 'probationProgress']);
     Route::put('technician/services', [TechnicianController::class, 'setServices']);
     Route::put('technician/availability', [TechnicianController::class, 'setAvailability']);
+    Route::patch('technician/location', [TechnicianController::class, 'updateLocation'])->middleware('throttle:30,1');
 
     Route::get('technician/offers', [TechnicianOfferController::class, 'index']);
     Route::post('technician/offers/{offer}/accept', [TechnicianOfferController::class, 'accept']);

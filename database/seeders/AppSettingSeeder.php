@@ -35,6 +35,7 @@ class AppSettingSeeder extends Seeder
             ['key' => 'parts_wait_max_hours',     'value' => '72',   'data_type' => 'int',     'description' => 'Hours a technician may pause an order waiting for parts before it is flagged for admin review'],
             ['key' => 'pending_expiry_minutes',   'value' => '10',   'data_type' => 'int',     'description' => 'Minutes an urgent order may sit pending (nobody accepted) before it expires and the inspection hold is refunded; a scheduled order expires once its appointment time passes unaccepted'],
             ['key' => 'max_dispatch_attempts',    'value' => '3',    'data_type' => 'int',     'description' => 'Max times a technician may be offered the same order; the retry loop re-offers timed-out (not declined) technicians up to this cap'],
+            ['key' => 'location_ttl_minutes',     'value' => '10',   'data_type' => 'int',     'description' => 'Max age of a technician\'s location ping to still be dispatchable for urgent orders (app pings every ~3 min / 300 m)'],
             // Manual (receipt-backed) top-up: the cash/bank account shown to users to transfer to.
             // PLACEHOLDERS — replace with the real account details.
             ['key' => 'manual_topup_account_name',   'value' => 'شركة الصيانة المنزلية', 'data_type' => 'string', 'description' => 'Account holder name shown to the user for a manual wallet top-up transfer'],

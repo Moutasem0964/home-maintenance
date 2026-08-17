@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ResolvesTechnician;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Technician\SetAvailabilityRequest;
 use App\Http\Requests\Technician\SetServicesRequest;
+use App\Http\Requests\Technician\UpdateLocationRequest;
 use App\Http\Resources\TechnicianResource;
 use App\Services\ProbationService;
 use Illuminate\Http\JsonResponse;
@@ -41,12 +42,33 @@ class TechnicianController extends Controller
         $technician = $this->technicianFor($request);
         $data = $request->validated();
 
+        $hasFix = ($data['current_lat'] ?? null) !== null;
+
         $technician->update([
             'is_available' => $data['is_available'],
             'current_lat' => $data['current_lat'] ?? $technician->current_lat,
             'current_lng' => $data['current_lng'] ?? $technician->current_lng,
+            'location_updated_at' => $hasFix ? now() : $technician->location_updated_at,
         ]);
 
         return new TechnicianResource($technician->load('services'));
+    }
+
+    /**
+     * Frequent, lightweight location heartbeat (the app sends it every ~3 min or ~300 m of
+     * movement while available). Refreshes the dispatch snapshot and its freshness stamp so a
+     * technician who has driven away from where they went online is routed from their real spot.
+     */
+    public function updateLocation(UpdateLocationRequest $request): JsonResponse
+    {
+        $technician = $this->technicianFor($request);
+
+        $technician->update([
+            'current_lat' => $request->validated('current_lat'),
+            'current_lng' => $request->validated('current_lng'),
+            'location_updated_at' => now(),
+        ]);
+
+        return response()->json(['location_updated_at' => $technician->location_updated_at]);
     }
 }
