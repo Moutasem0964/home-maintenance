@@ -118,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('messages/{message}/image', [OrderMessageController::class, 'image']);
 
     Route::post('orders/{order}/review', [ReviewController::class, 'store']);
+    Route::get('warranties', [WarrantyController::class, 'index']);
     Route::post('orders/{order}/warranty-claim', [WarrantyController::class, 'claim']);
 
     Route::post('orders/{order}/cancel', [CancellationController::class, 'cancel']);
