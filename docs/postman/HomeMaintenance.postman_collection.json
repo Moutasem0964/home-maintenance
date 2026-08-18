@@ -2448,6 +2448,36 @@
    "name": "Reviews & Warranty",
    "item": [
     {
+     "name": "List Warranties (client)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/warranties?filter=covered",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "warranties"
+       ],
+       "query": [
+        {
+         "key": "filter",
+         "value": "covered",
+         "description": "covered = طلبات مكفولة (تحت الضمان) | claimed = طلبات كفالة مطالب بها"
+        }
+       ]
+      },
+      "description": "Client warranty screen. filter=covered → original orders still under active warranty; filter=claimed → warranty visits already requested. Returns OrderResource[]."
+     }
+    },
+    {
      "name": "Leave Review (client)",
      "request": {
       "method": "POST",
