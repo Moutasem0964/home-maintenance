@@ -99,6 +99,7 @@ class Order extends Model
         return $this->belongsTo(Technician::class);
     }
 
+    /** @return BelongsTo<ServiceCategory, $this> */
     public function serviceCategory(): BelongsTo
     {
         return $this->belongsTo(ServiceCategory::class);

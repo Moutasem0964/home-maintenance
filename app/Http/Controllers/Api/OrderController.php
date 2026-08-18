@@ -36,7 +36,7 @@ class OrderController extends Controller
             $query->where('status', $status);
         }
 
-        return OrderResource::collection($query->latest()->get());
+        return OrderResource::collection($query->with('serviceCategory')->latest()->get());
     }
 
     public function store(StoreOrderRequest $request, OrderService $orderService, OrderPhotoService $photoService): JsonResponse
