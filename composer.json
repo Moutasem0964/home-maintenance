@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.3",
         "dedoc/scramble": "^0.13.40",
+        "fakerphp/faker": "^1.24",
         "filament/filament": "5.7.5",
         "kreait/laravel-firebase": "^7.2",
         "laravel/framework": "^13.8",
@@ -16,7 +17,6 @@
         "laravel/tinker": "^3.0"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.10",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
