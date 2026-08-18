@@ -26,8 +26,9 @@ class TechnicianRegisterTest extends TestCase
         $this->sms = new FakeSmsSender;
         $this->app->instance(SmsSender::class, $this->sms);
 
-        // KYC files land on the private disk — fake it so nothing hits real storage.
+        // KYC files land on the private disk; the profile avatar on the public disk. Fake both.
         Storage::fake('local');
+        Storage::fake('public');
     }
 
     private string $phone = '0913333333';
@@ -119,7 +120,7 @@ class TechnicianRegisterTest extends TestCase
 
         $user = User::where('phone', '+9639'.substr($this->phone, -8))->firstOrFail();
         $this->assertNotNull($user->profile_image_url);
-        Storage::disk('local')->assertExists($user->profile_image_url);
+        Storage::disk('public')->assertExists($user->profile_image_url);
     }
 
     public function test_registration_rejects_an_invalid_ticket(): void

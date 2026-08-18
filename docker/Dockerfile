@@ -17,6 +17,9 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction \
-    && chown -R www-data:www-data storage bootstrap/cache
+    && chown -R www-data:www-data storage bootstrap/cache \
+    # Bake the public storage symlink into the image so it survives every rebuild
+    # (public/ is baked in, storage/ is a runtime volume — the link points across).
+    && ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
 
 EXPOSE 80

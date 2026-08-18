@@ -8,6 +8,12 @@ use App\Enums\TechnicianFlagStatus;
 use App\Enums\TechnicianStatus;
 use App\Enums\TopUpStatus;
 use App\Enums\WithdrawalStatus;
+use App\Filament\Resources\DisputeResource;
+use App\Filament\Resources\OrderResource;
+use App\Filament\Resources\TechnicianFlagResource;
+use App\Filament\Resources\TechnicianResource;
+use App\Filament\Resources\TopUpResource;
+use App\Filament\Resources\WithdrawalResource;
 use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\Technician;
@@ -40,21 +46,21 @@ class PlatformStats extends StatsOverviewWidget
 
         return [
             Stat::make('الطلبات النشطة', $activeOrders)
-                ->icon('heroicon-o-bolt')->color('info'),
+                ->icon('heroicon-o-bolt')->color('info')->url(OrderResource::getUrl()),
             Stat::make('طلبات سحب معلّقة', $pendingWithdrawals)
-                ->icon('heroicon-o-banknotes')->color($pendingWithdrawals > 0 ? 'warning' : 'success'),
+                ->icon('heroicon-o-banknotes')->color($pendingWithdrawals > 0 ? 'warning' : 'success')->url(WithdrawalResource::getUrl()),
             Stat::make('طلبات شحن معلّقة', $pendingDeposits)
-                ->icon('heroicon-o-arrow-down-tray')->color($pendingDeposits > 0 ? 'warning' : 'success'),
+                ->icon('heroicon-o-arrow-down-tray')->color($pendingDeposits > 0 ? 'warning' : 'success')->url(TopUpResource::getUrl()),
             Stat::make('نزاعات مفتوحة', $openDisputes)
-                ->icon('heroicon-o-scale')->color($openDisputes > 0 ? 'danger' : 'success'),
+                ->icon('heroicon-o-scale')->color($openDisputes > 0 ? 'danger' : 'success')->url(DisputeResource::getUrl()),
             Stat::make('مخالفات فنيين مفتوحة', $openFlags)
-                ->icon('heroicon-o-flag')->color($openFlags > 0 ? 'warning' : 'success'),
+                ->icon('heroicon-o-flag')->color($openFlags > 0 ? 'warning' : 'success')->url(TechnicianFlagResource::getUrl()),
             Stat::make('الفنيون العاملون', $workingTechs)
-                ->icon('heroicon-o-wrench-screwdriver')->color('info'),
+                ->icon('heroicon-o-wrench-screwdriver')->color('info')->url(TechnicianResource::getUrl()),
             Stat::make('الأرصدة المحجوزة (ضمان)', number_format($heldTotal, 2))
                 ->icon('heroicon-o-lock-closed')->color('gray'),
             Stat::make('إجمالي العمولات (طلبات مكتملة)', number_format($revenue, 2))
-                ->icon('heroicon-o-currency-dollar')->color('success'),
+                ->icon('heroicon-o-currency-dollar')->color('success')->url(OrderResource::getUrl()),
         ];
     }
 }
