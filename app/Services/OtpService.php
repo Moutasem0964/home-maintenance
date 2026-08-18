@@ -130,7 +130,9 @@ class OtpService
     {
         $ttl = (int) config('otp.ttl_minutes');
 
-        return "Home Maintenance verification code: {$code} (valid {$ttl} min).";
+        // Syriatel filters the English phrase "verification code" as A2P spam (MTN allows it);
+        // the Arabic "رمز التحقق" passes both, so we keep the wording Arabic. (Confirmed by testing.)
+        return "Home Maintenance رمز التحقق: {$code} (valid {$ttl} min).";
     }
 
     private function codeKey(string $phone, string $purpose): string
