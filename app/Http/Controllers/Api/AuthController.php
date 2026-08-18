@@ -108,11 +108,11 @@ class AuthController extends Controller
         ], 201);
     }
 
-    /** Store an optional profile photo on the private disk and record its path. */
+    /** Store an optional profile photo on the PUBLIC disk (avatars are non-sensitive and shown in-app). */
     private function storeProfilePhoto(Request $request, User $user): void
     {
         if ($request->hasFile('profile_photo')) {
-            $user->update(['profile_image_url' => $request->file('profile_photo')->store('profiles', 'local')]);
+            $user->update(['profile_image_url' => $request->file('profile_photo')->store('profiles', 'public')]);
         }
     }
 

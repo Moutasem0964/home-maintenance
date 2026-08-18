@@ -60,7 +60,7 @@ class AuthTest extends TestCase
 
     public function test_client_registration_stores_an_optional_profile_photo(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
         $ticket = $this->verifyForRegister();
 
         $response = $this->post('/api/auth/register/client', [
@@ -74,8 +74,9 @@ class AuthTest extends TestCase
 
         $user = User::where('phone', '+963912345678')->firstOrFail();
         $this->assertNotNull($user->profile_image_url);
-        Storage::disk('local')->assertExists($user->profile_image_url);
-        $response->assertJsonPath('user.profile_image_url', $user->profile_image_url);
+        // Avatars live on the public disk now, and the resource returns a full URL.
+        Storage::disk('public')->assertExists($user->profile_image_url);
+        $response->assertJsonPath('user.profile_image_url', Storage::disk('public')->url($user->profile_image_url));
     }
 
     public function test_the_profile_photo_is_optional_and_defaults_to_null(): void
